@@ -11,8 +11,7 @@ function App() {
             .catch(err => console.error('Error fetching health check:', err));
     }, []);
 
-    return (
-        <div className="container">
+    return <div className="container">
             <h1>ShopSmart</h1>
             <div className="card">
                 <h2>Backend Status</h2>
@@ -30,7 +29,6 @@ function App() {
                 Edit <code>src/App.jsx</code> and save to test HMR
             </p>
         </div>
-    )
 }
 
 export default App
