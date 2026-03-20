@@ -6,7 +6,7 @@ Stack: **React (Vite)** + **Express** + **Prisma** + **MySQL**.
 
 ## Features
 
-#checking code quality raising pr to main
+#checking code quality raising pr to main repo
 
 - Product catalog (retail goods)
 - Register / login (JWT)
