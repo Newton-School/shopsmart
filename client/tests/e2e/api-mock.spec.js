@@ -16,8 +16,8 @@ test.describe('Mocked API E2E', () => {
 
     await page.goto('/');
     // Page should still render correctly with mocked API
-    await expect(page.getByText('SHOPSMART')).toBeVisible();
-    await expect(page.locator('h1')).toContainText('Unleash Your Style');
+    await expect(page.getByText('Shopcart')).toBeVisible();
+    await expect(page.locator('h1')).toContainText('Grab Upto 50% Off');
   });
 
   test('mocked GET /api/cart returns cart items', async ({ page }) => {
@@ -51,7 +51,7 @@ test.describe('Mocked API E2E', () => {
 
     await page.goto('/');
     // Navigate to collections (would trigger product add in real app)
-    await expect(page.getByText('SHOPSMART')).toBeVisible();
+    await expect(page.getByText('Shopcart')).toBeVisible();
   });
 
   test('page loads correctly when API returns 500 error', async ({ page }) => {
@@ -65,12 +65,12 @@ test.describe('Mocked API E2E', () => {
 
     // App should not crash even when API fails
     await page.goto('/');
-    await expect(page.getByText('SHOPSMART')).toBeVisible();
+    await expect(page.getByText('Shopcart')).toBeVisible();
   });
 
   test('cart badge shows count on mocked navbar state', async ({ page }) => {
     await page.goto('/');
     // The hardcoded badge "2" in Navbar should always be present — use specific locator
-    await expect(page.getByRole('link', { name: 'cart' }).locator('span')).toBeVisible();
+    await expect(page.getByRole('link', { name: /Cart/i }).locator('span').first()).toBeVisible();
   });
 });

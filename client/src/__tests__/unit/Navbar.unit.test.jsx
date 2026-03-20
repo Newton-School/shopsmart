@@ -11,48 +11,48 @@ const renderNavbar = () =>
   );
 
 describe("Navbar — Unit Tests", () => {
-  it("renders SHOPSMART logo text", () => {
+  it("renders Shopcart logo text", () => {
     renderNavbar();
-    expect(screen.getByText("SHOPSMART")).toBeInTheDocument();
+    expect(screen.getByText("Shopcart")).toBeInTheDocument();
   });
 
   it('logo links to the home route "/"', () => {
     renderNavbar();
-    const logo = screen.getByText("SHOPSMART").closest("a");
+    const logo = screen.getByText("Shopcart").closest("a");
     expect(logo).toHaveAttribute("href", "/");
   });
 
-  it('renders "About Us" nav link with correct href', () => {
+  it('renders "Categories" nav link with correct href', () => {
     renderNavbar();
-    const link = screen.getByRole("link", { name: /about us/i });
+    const link = screen.getByRole("link", { name: /categories/i });
     expect(link).toBeInTheDocument();
-    expect(link).toHaveAttribute("href", "/about");
+    expect(link).toHaveAttribute("href", "/categories");
   });
 
-  it('renders "Blog" nav link with correct href', () => {
+  it('renders "Deals" nav link with correct href', () => {
     renderNavbar();
-    const link = screen.getByRole("link", { name: /blog/i });
+    const link = screen.getByRole("link", { name: /deals/i });
     expect(link).toBeInTheDocument();
-    expect(link).toHaveAttribute("href", "/blog");
+    expect(link).toHaveAttribute("href", "/deals");
   });
 
-  it('renders "FAQ" nav link with correct href', () => {
+  it('renders "Delivery" nav link with correct href', () => {
     renderNavbar();
-    const link = screen.getByRole("link", { name: /faq/i });
+    const link = screen.getByRole("link", { name: /delivery/i });
     expect(link).toBeInTheDocument();
-    expect(link).toHaveAttribute("href", "/faq");
+    expect(link).toHaveAttribute("href", "/delivery");
   });
 
-  it('renders search input with placeholder "Clothing"', () => {
+  it('renders search input with placeholder "Search Product"', () => {
     renderNavbar();
-    const input = screen.getByPlaceholderText("Clothing");
+    const input = screen.getByPlaceholderText("Search Product");
     expect(input).toBeInTheDocument();
     expect(input).toHaveAttribute("type", "text");
   });
 
   it('renders cart icon link pointing to "/cart"', () => {
     renderNavbar();
-    const cartLink = screen.getByRole("link", { name: /cart/i });
+    const cartLink = screen.getByRole("link", { name: /^cart$/i });
     expect(cartLink).toHaveAttribute("href", "/cart");
   });
 
@@ -61,24 +61,10 @@ describe("Navbar — Unit Tests", () => {
     expect(screen.getByText("2")).toBeInTheDocument();
   });
 
-  it('renders profile icon link pointing to "/profile"', () => {
+  it('renders account icon link pointing to "/profile"', () => {
     renderNavbar();
-    const profileLink = screen.getByRole("link", { name: /profile/i });
+    const profileLink = screen.getByRole("link", { name: /account/i });
     expect(profileLink).toHaveAttribute("href", "/profile");
   });
 
-  it("renders all 6 category navigation pills", () => {
-    renderNavbar();
-    const categories = [
-      "New Arrivals",
-      "Sales",
-      "Men",
-      "Women",
-      "Kid's",
-      "Brand",
-    ];
-    categories.forEach((cat) => {
-      expect(screen.getByText(cat)).toBeInTheDocument();
-    });
-  });
 });

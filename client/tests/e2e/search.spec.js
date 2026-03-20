@@ -5,26 +5,26 @@ test.describe('Search Bar', () => {
     await page.goto('/');
   });
 
-  test('search input is visible with placeholder "Clothing"', async ({ page }) => {
-    const input = page.getByPlaceholder('Clothing');
+  test('search input is visible with placeholder "Search Product"', async ({ page }) => {
+    const input = page.getByPlaceholder('Search Product');
     await expect(input).toBeVisible();
   });
 
   test('typing in search updates input value', async ({ page }) => {
-    const input = page.getByPlaceholder('Clothing');
-    await input.fill('jeans');
-    await expect(input).toHaveValue('jeans');
+    const input = page.getByPlaceholder('Search Product');
+    await input.fill('headphones');
+    await expect(input).toHaveValue('headphones');
   });
 
   test('search input accepts special characters', async ({ page }) => {
-    const input = page.getByPlaceholder('Clothing');
-    await input.fill("Kid's wear");
-    await expect(input).toHaveValue("Kid's wear");
+    const input = page.getByPlaceholder('Search Product');
+    await input.fill("Kid's gear");
+    await expect(input).toHaveValue("Kid's gear");
   });
 
   test('search input can be cleared', async ({ page }) => {
-    const input = page.getByPlaceholder('Clothing');
-    await input.fill('sweater');
+    const input = page.getByPlaceholder('Search Product');
+    await input.fill('headset');
     await input.clear();
     await expect(input).toHaveValue('');
   });

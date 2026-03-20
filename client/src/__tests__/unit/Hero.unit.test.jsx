@@ -3,70 +3,50 @@ import { describe, expect, it } from "vitest";
 import Hero from "../../components/Hero";
 
 describe("Hero — Unit Tests", () => {
-  it('renders the main heading "Unleash Your Style"', () => {
+  it('renders the main heading "Grab Upto 50% Off On Selected Headphone"', () => {
     render(<Hero />);
-    expect(screen.getByText(/unleash your style/i)).toBeInTheDocument();
+    expect(screen.getByText(/grab upto 50% off/i)).toBeInTheDocument();
   });
 
-  it('renders the "Shop Now" CTA button', () => {
+  it('renders the "Buy Now" CTA button', () => {
     render(<Hero />);
     expect(
-      screen.getByRole("button", { name: /shop now/i }),
+      screen.getByRole("button", { name: /buy now/i }),
     ).toBeInTheDocument();
-  });
-
-  it('renders the "15 Million+" customer stat', () => {
-    render(<Hero />);
-    expect(screen.getByText(/15 Million\+/i)).toBeInTheDocument();
-  });
-
-  it("renders 4 avatar images from pravatar", () => {
-    render(<Hero />);
-    const avatars = screen.getAllByAltText("user");
-    expect(avatars).toHaveLength(4);
-    avatars.forEach((img) => {
-      expect(img.src).toContain("pravatar.cc");
-    });
   });
 
   it("renders the hero main image with correct alt text", () => {
     render(<Hero />);
-    expect(screen.getByAltText("Man in sweater")).toBeInTheDocument();
+    expect(screen.getByAltText("Model with Headphones")).toBeInTheDocument();
   });
 
-  it("renders the Cream Jacket product card image", () => {
+  it("renders all filter category buttons", () => {
     render(<Hero />);
-    expect(screen.getByAltText("Cream Jacket")).toBeInTheDocument();
+    const filters = [
+      "Headphone Type",
+      "Price",
+      "Review",
+      "Color",
+      "Material",
+      "Offer",
+      "All Filters",
+    ];
+    filters.forEach((filter) => {
+      expect(screen.getByRole("button", { name: new RegExp(filter, 'i') })).toBeInTheDocument();
+    });
   });
 
-  it("renders the Clothes Rack product card image", () => {
+  it('renders the "Headphones For You!" section heading', () => {
     render(<Hero />);
-    expect(screen.getByAltText("Clothes Rack")).toBeInTheDocument();
+    expect(screen.getByText(/Headphones For You!/i)).toBeInTheDocument();
   });
 
-  it('renders the "Explore now" button on the third card', () => {
+  it("renders the product cards with 'Wireless Headset' and 'Add to Cart' buttons", () => {
     render(<Hero />);
-    expect(
-      screen.getByRole("button", { name: /explore now/i }),
-    ).toBeInTheDocument();
-  });
+    const productTitles = screen.getAllByText("Wireless Headset");
+    expect(productTitles.length).toBeGreaterThan(0);
 
-  // it("renders all 5 brand logo labels", () => {
-  //   render(<Hero />);
-  //   const brands = [
-  //     "GRAPHIC STUDIO",
-  //     "S. SALVA",
-  //     "GOLDEN STUDIO",
-  //     "FURNITURE DESIGN",
-  //     "TRAVEL LOOKBOOK",
-  //   ];
-  //   brands.forEach((brand) => {
-  //     expect(screen.getByText(brand)).toBeInTheDocument();
-  //   });
-  // });
-
-  it('renders the "Models wearing full outfits" text', () => {
-    render(<Hero />);
-    expect(screen.getByText(/models wearing/i)).toBeInTheDocument();
+    const addToCartButtons = screen.getAllByRole("button", { name: /add to cart/i });
+    expect(addToCartButtons.length).toBe(4);
   });
 });

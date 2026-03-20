@@ -6,19 +6,19 @@ test.describe('Homepage', () => {
   });
 
   test('loads successfully and shows hero heading', async ({ page }) => {
-    await expect(page.locator('h1')).toContainText('Unleash Your Style');
+    await expect(page.locator('h1')).toContainText('Grab Upto 50% Off');
   });
 
-  test('Navbar is visible with SHOPSMART logo', async ({ page }) => {
-    await expect(page.getByText('SHOPSMART')).toBeVisible();
+  test('Navbar is visible with Shopcart logo', async ({ page }) => {
+    await expect(page.getByText('Shopcart')).toBeVisible();
   });
 
-  test('Shop Now button is visible on hero', async ({ page }) => {
-    await expect(page.getByRole('button', { name: /shop now/i })).toBeVisible();
+  test('Buy Now button is visible on hero', async ({ page }) => {
+    await expect(page.getByRole('button', { name: /buy now/i })).toBeVisible();
   });
 
-  test('15 Million+ customer stat is shown', async ({ page }) => {
-    await expect(page.getByText(/15 Million\+/i)).toBeVisible();
+  test('Headphones For You heading is shown', async ({ page }) => {
+    await expect(page.getByText(/Headphones For You/i)).toBeVisible();
   });
 
   test('page title is set (not blank)', async ({ page }) => {

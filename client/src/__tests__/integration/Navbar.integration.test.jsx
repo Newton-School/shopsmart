@@ -12,25 +12,25 @@ const renderNavbar = () =>
   );
 
 describe("Navbar Integration Tests", () => {
-  it("About Us link has correct href for routing", () => {
+  it("Categories link has correct href for routing", () => {
     renderNavbar();
-    expect(screen.getByRole("link", { name: /about us/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /categories/i })).toHaveAttribute(
       "href",
-      "/about",
+      "/categories",
     );
   });
 
-  it("Blog link has correct href for routing", () => {
+  it("Deals link has correct href for routing", () => {
     renderNavbar();
-    expect(screen.getByRole("link", { name: /blog/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /deals/i })).toHaveAttribute(
       "href",
-      "/blog",
+      "/deals",
     );
   });
 
   it("Cart icon link has correct href for routing", () => {
     renderNavbar();
-    expect(screen.getByRole("link", { name: /cart/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /^cart$/i })).toHaveAttribute(
       "href",
       "/cart",
     );
@@ -38,7 +38,7 @@ describe("Navbar Integration Tests", () => {
 
   it("Profile icon link has correct href for routing", () => {
     renderNavbar();
-    expect(screen.getByRole("link", { name: /profile/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /account/i })).toHaveAttribute(
       "href",
       "/profile",
     );
@@ -46,30 +46,16 @@ describe("Navbar Integration Tests", () => {
 
   it("Search input accepts typed text", async () => {
     renderNavbar();
-    const searchInput = screen.getByPlaceholderText("Clothing");
-    await userEvent.type(searchInput, "jeans");
-    expect(searchInput.value).toBe("jeans");
+    const searchInput = screen.getByPlaceholderText("Search Product");
+    await userEvent.type(searchInput, "headphones");
+    expect(searchInput.value).toBe("headphones");
   });
 
-  it('"Clothing" category pill links to /collections', () => {
+  it('"Delivery" pill links to /delivery', () => {
     renderNavbar();
-    const clothingLinks = screen.getAllByRole("link", { name: /clothing/i });
-    expect(clothingLinks[0]).toHaveAttribute("href", "/collections");
-  });
-
-  it('"New Arrivals" pill links to /collections', () => {
-    renderNavbar();
-    expect(screen.getByRole("link", { name: /new arrivals/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /delivery/i })).toHaveAttribute(
       "href",
-      "/collections",
-    );
-  });
-
-  it('"Sales" pill links to /collections', () => {
-    renderNavbar();
-    expect(screen.getByRole("link", { name: /sales/i })).toHaveAttribute(
-      "href",
-      "/collections",
+      "/delivery",
     );
   });
 
@@ -81,7 +67,7 @@ describe("Navbar Integration Tests", () => {
 
   it("Logo link sits inside the nav element", () => {
     renderNavbar();
-    const logo = screen.getByText("SHOPSMART");
+    const logo = screen.getByText("Shopcart");
     expect(logo.closest("nav")).toBeInTheDocument();
   });
 });
