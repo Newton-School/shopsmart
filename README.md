@@ -6,6 +6,8 @@ Stack: **React (Vite)** + **Express** + **Prisma** + **MySQL**.
 
 ## Features
 
+#checking code quality
+
 - Product catalog (retail goods)
 - Register / login (JWT)
 - Shopping cart & checkout (demo—no real payment processor)
@@ -127,6 +129,10 @@ On **push / PR** to `main` or `master`:
 2. **`e2e`** — MySQL service, Prisma migrate + seed, API + Vite, **Playwright** Chromium.
 
 Workflow file: **`.github/workflows/ci.yml`**.
+
+## Dependabot
+
+**`.github/dependabot.yml`** opens weekly PRs to update **npm** dependencies in the repo root, **`client/`**, and **`server/`**, and to bump **GitHub Actions** versions. Enable it by merging that file into the default branch (Settings → Code security → Dependabot version updates must be allowed for the repo).
 
 ## Security (production)
 
