@@ -1,10 +1,4 @@
-import {
-  Menu,
-  Phone,
-  Search,
-  ShoppingCart,
-  User,
-} from "lucide-react";
+import { Menu, Phone, Search, ShoppingCart, User } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useCart } from "../context/CartContext.jsx";
 
@@ -106,7 +100,9 @@ const Navbar = () => {
                     </span>
                   )}
                 </div>
-                <span className="hidden lg:block text-sm font-medium">Cart</span>
+                <span className="hidden lg:block text-sm font-medium">
+                  Cart
+                </span>
               </Link>
             </div>
           </div>

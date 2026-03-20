@@ -45,7 +45,9 @@ const ProductModal = ({ product, isOpen, onClose }) => {
           <div className="space-y-4 mb-8">
             <div className="flex items-center justify-between border-b border-gray-100 pb-4">
               <span className="text-gray-500">Material</span>
-              <span className="font-medium text-gray-900">{product.material || "Premium Audio Grade"}</span>
+              <span className="font-medium text-gray-900">
+                {product.material || "Premium Audio Grade"}
+              </span>
             </div>
             <div className="flex items-center justify-between border-b border-gray-100 pb-4">
               <span className="text-gray-500">Connectivity</span>

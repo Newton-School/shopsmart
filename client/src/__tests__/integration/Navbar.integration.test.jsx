@@ -11,7 +11,7 @@ const renderNavbar = () =>
       <MemoryRouter>
         <Navbar />
       </MemoryRouter>
-    </CartProvider>
+    </CartProvider>,
   );
 
 describe("Navbar Integration Tests", () => {

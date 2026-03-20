@@ -3,7 +3,12 @@ import { describe, expect, it } from "vitest";
 import Hero from "../../components/Hero";
 import { CartProvider } from "../../context/CartContext";
 
-const renderHero = () => render(<CartProvider><Hero /></CartProvider>);
+const renderHero = () =>
+  render(
+    <CartProvider>
+      <Hero />
+    </CartProvider>,
+  );
 
 describe("Hero — Unit Tests", () => {
   it('renders the main heading "Grab Upto 50% Off On Selected Headphone"', () => {
@@ -35,7 +40,9 @@ describe("Hero — Unit Tests", () => {
       "All Filters",
     ];
     filters.forEach((filter) => {
-      expect(screen.getByRole("button", { name: new RegExp(filter, 'i') })).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: new RegExp(filter, "i") }),
+      ).toBeInTheDocument();
     });
   });
 
@@ -46,7 +53,9 @@ describe("Hero — Unit Tests", () => {
 
   it("renders the product cards with 'Add to Cart' buttons", () => {
     renderHero();
-    const addToCartButtons = screen.getAllByRole("button", { name: /add to cart/i });
+    const addToCartButtons = screen.getAllByRole("button", {
+      name: /add to cart/i,
+    });
     expect(addToCartButtons.length).toBe(8);
   });
 });

@@ -10,7 +10,7 @@ const renderNavbar = () =>
       <MemoryRouter>
         <Navbar />
       </MemoryRouter>
-    </CartProvider>
+    </CartProvider>,
   );
 
 describe("Navbar — Unit Tests", () => {
@@ -59,7 +59,7 @@ describe("Navbar — Unit Tests", () => {
     expect(cartLink).toHaveAttribute("href", "/cart");
   });
 
-  it('does not render cart badge when cart is empty', () => {
+  it("does not render cart badge when cart is empty", () => {
     renderNavbar();
     expect(screen.queryByText("2")).not.toBeInTheDocument();
   });
@@ -69,5 +69,4 @@ describe("Navbar — Unit Tests", () => {
     const profileLink = screen.getByRole("link", { name: /account/i });
     expect(profileLink).toHaveAttribute("href", "/profile");
   });
-
 });

@@ -17,7 +17,11 @@ describe("App", () => {
       }),
     );
 
-    render(<CartProvider><App /></CartProvider>);
+    render(
+      <CartProvider>
+        <App />
+      </CartProvider>,
+    );
     const linkElement = screen.getByText(/Shopcart/i);
     expect(linkElement).toBeInTheDocument();
   });
