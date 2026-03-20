@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 export default function Categories() {
   const categories = [
     { name: "Over-Ear Headphones", count: "120+ Products", image: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800&q=80" },
-    { name: "In-Ear Earbuds", count: "85+ Products", image: "https://images.unsplash.com/photo-1572536147248-cb59a2fd2910?w=800&q=80" },
+    { name: "In-Ear Earbuds", count: "85+ Products", image: "https://images.unsplash.com/photo-1608043152269-423dbba4e7e1?w=800&q=80" },
     { name: "Noise Cancelling", count: "40+ Products", image: "https://images.unsplash.com/photo-1546435770-a3e426bf472b?w=800&q=80" },
     { name: "Gaming Headsets", count: "60+ Products", image: "https://images.unsplash.com/photo-1618366712010-f4ae9c647dcb?w=800&q=80" },
     { name: "Studio Monitors", count: "25+ Products", image: "https://images.unsplash.com/photo-1583394838336-acd977736f90?w=800&q=80" },

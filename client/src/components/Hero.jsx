@@ -6,11 +6,11 @@ const PRODUCTS = [
   { id: 1, name: "Wireless Headset", price: 199, material: "Organic Cotton", image: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&q=80&w=400", reviews: 121 },
   { id: 2, name: "Studio Pro", price: 299, material: "Premium Aluminum", image: "https://images.unsplash.com/photo-1583394838336-acd977736f90?auto=format&fit=crop&q=80&w=400", reviews: 342 },
   { id: 3, name: "Acoustic Noise", price: 149, material: "Matte Plastic", image: "https://images.unsplash.com/photo-1546435770-a3e426bf472b?auto=format&fit=crop&q=80&w=400", reviews: 89 },
-  { id: 4, name: "Bass Booster", price: 249, material: "Leather Pads", image: "https://images.unsplash.com/photo-1590658268037-6f1115ea9027?auto=format&fit=crop&q=80&w=400", reviews: 215 },
+  { id: 4, name: "Bass Booster", price: 249, material: "Leather Pads", image: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&q=80&w=400", reviews: 215 },
   { id: 5, name: "Gamer Elite", price: 189, material: "RGB Polymer", image: "https://images.unsplash.com/photo-1618366712010-f4ae9c647dcb?auto=format&fit=crop&q=80&w=400", reviews: 450 },
-  { id: 6, name: "Sport Earbuds", price: 89, material: "Silicone", image: "https://images.unsplash.com/photo-1572536147248-cb59a2fd2910?auto=format&fit=crop&q=80&w=400", reviews: 52 },
+  { id: 6, name: "Sport Earbuds", price: 89, material: "Silicone", image: "https://images.unsplash.com/photo-1608043152269-423dbba4e7e1?auto=format&fit=crop&q=80&w=400", reviews: 52 },
   { id: 7, name: "Classic Beats", price: 119, material: "Retro Steel", image: "https://images.unsplash.com/photo-1608043152269-423dbba4e7e1?auto=format&fit=crop&q=80&w=400", reviews: 93 },
-  { id: 8, name: "DJ Monitor X", price: 349, material: "Carbon Fiber", image: "https://images.unsplash.com/photo-1588820084534-11933ba077a2?auto=format&fit=crop&q=80&w=400", reviews: 671 },
+  { id: 8, name: "DJ Monitor X", price: 349, material: "Carbon Fiber", image: "https://images.unsplash.com/photo-1583394838336-acd977736f90?auto=format&fit=crop&q=80&w=400", reviews: 671 },
 ];
 
 const Hero = () => {

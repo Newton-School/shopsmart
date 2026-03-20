@@ -4,8 +4,8 @@ import { Link } from "react-router-dom";
 export default function WhatsNew() {
   const products = [
     { title: "Next-Gen Audio", name: "Spatial Audio Max", arrivalDate: "Just Arrived", price: "$399", image: "https://images.unsplash.com/photo-1618366712010-f4ae9c647dcb?w=800&q=80" },
-    { title: "Limited Edition", name: "Midnight Series", arrivalDate: "This Week", price: "$249", image: "https://images.unsplash.com/photo-1590658268037-6f1115ea9027?w=800&q=80" },
-    { title: "Pro Streaming", name: "CastMic V2", arrivalDate: "Coming Soon", price: "$149", image: "https://images.unsplash.com/photo-1588820084534-11933ba077a2?w=800&q=80" },
+    { title: "Limited Edition", name: "Midnight Series", arrivalDate: "This Week", price: "$249", image: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800&q=80" },
+    { title: "Pro Streaming", name: "CastMic V2", arrivalDate: "Coming Soon", price: "$149", image: "https://images.unsplash.com/photo-1583394838336-acd977736f90?w=800&q=80" },
   ];
 
   return (

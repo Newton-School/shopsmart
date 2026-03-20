@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 export default function Deals() {
   const deals = [
     { title: "Special Deal 1", discount: "50% Off", name: "Premium Wireless Headset", originalPrice: "$299", price: "$149", image: "https://images.unsplash.com/photo-1546435770-a3e426bf472b?w=800&q=80" },
-    { title: "Weekend Offer", discount: "30% Off", name: "Sport Bluetooth Earbuds", originalPrice: "$129", price: "$89", image: "https://images.unsplash.com/photo-1572536147248-cb59a2fd2910?w=800&q=80" },
+    { title: "Weekend Offer", discount: "30% Off", name: "Sport Bluetooth Earbuds", originalPrice: "$129", price: "$89", image: "https://images.unsplash.com/photo-1608043152269-423dbba4e7e1?w=800&q=80" },
     { title: "Limited Time", discount: "$50 Off", name: "Studio Pro Monitors", originalPrice: "$349", price: "$299", image: "https://images.unsplash.com/photo-1583394838336-acd977736f90?w=800&q=80" },
   ];
 
