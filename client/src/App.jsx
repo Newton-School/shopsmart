@@ -1,36 +1,37 @@
-import { useState, useEffect } from 'react'
+import { SiteHeader } from './components/SiteHeader';
+import { Hero } from './components/Hero';
+import { ProductList } from './components/ProductList';
+import { Footer } from './components/Footer';
+import { useHealth } from './hooks/useHealth';
+import { useProducts } from './hooks/useProducts';
 
 function App() {
-    const [data, setData] = useState(null);
+  const health = useHealth();
+  const { products, loading, error } = useProducts();
 
-    useEffect(() => {
-        const apiUrl = import.meta.env.VITE_API_URL || '';
-        fetch(`${apiUrl}/api/health`)
-            .then(res => res.json())
-            .then(data => setData(data))
-            .catch(err => console.error('Error fetching health check:', err));
-    }, []);
-
-    return (
-        <div className="container">
-            <h1>ShopSmart</h1>
-            <div className="card">
-                <h2>Backend Status</h2>
-                {data ? (
-                    <div>
-                        <p>Status: <span className="status-ok">{data.status}</span></p>
-                        <p>Message: {data.message}</p>
-                        <p>Timestamp: {data.timestamp}</p>
-                    </div>
-                ) : (
-                    <p>Loading backend status...</p>
-                )}
-            </div>
-            <p className="hint">
-                Edit <code>src/App.jsx</code> and save to test HMR
+  return (
+    <div className="layout">
+      <SiteHeader health={health} />
+      <Hero />
+      <main id="catalog" className="catalog">
+        <div className="catalog__head">
+          <div>
+            <h2 className="catalog__title">Shop the catalog</h2>
+            <p className="catalog__subtitle">
+              Hand-picked items with photos, categories, and live stock from your API.
             </p>
+          </div>
+          {!loading && !error && (
+            <p className="catalog__count" aria-live="polite">
+              <strong>{products.length}</strong> products
+            </p>
+          )}
         </div>
-    )
+        <ProductList products={products} loading={loading} error={error} />
+      </main>
+      <Footer />
+    </div>
+  );
 }
 
-export default App
+export default App;
