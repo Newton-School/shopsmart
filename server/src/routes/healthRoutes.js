@@ -5,7 +5,7 @@ const router = express.Router();
 router.get('/', (_req, res) => {
   res.json({
     status: 'ok',
-    message: 'ShopSmart Backend is running',
+    message: 'Shopsmart API is running',
     timestamp: new Date().toISOString(),
   });
 });

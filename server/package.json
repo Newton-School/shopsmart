@@ -1,12 +1,13 @@
 {
   "name": "shopsmart-backend",
   "version": "1.0.0",
-  "description": "Backend API for ShopSmart",
+  "description": "Backend API for Shopsmart e-commerce platform",
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
     "test": "jest --forceExit --detectOpenHandles",
+    "test:integration": "SHOPSMART_INTEGRATION=1 jest --config jest.integration.config.js --forceExit --detectOpenHandles",
     "test:coverage": "jest --coverage --forceExit --detectOpenHandles",
     "lint": "eslint src/ tests/ --ext .js",
     "lint:fix": "eslint src/ tests/ --ext .js --fix",
@@ -20,13 +21,16 @@
     "postinstall": "npx prisma generate"
   },
   "prisma": {
+    "schema": "prisma/schema.prisma",
     "seed": "node prisma/seed.js"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
+    "bcryptjs": "^3.0.3",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
-    "express": "^4.19.2"
+    "express": "^4.19.2",
+    "jsonwebtoken": "^9.0.3"
   },
   "devDependencies": {
     "eslint": "^8.57.0",
