@@ -1,12 +1,11 @@
 import { Route, HashRouter as Router, Routes } from "react-router-dom";
 import Hero from "./components/Hero";
 import Navbar from "./components/Navbar";
-import About from "./pages/About";
-import Blog from "./pages/Blog";
+import Categories from "./pages/Categories";
+import Deals from "./pages/Deals";
+import WhatsNew from "./pages/WhatsNew";
+import Delivery from "./pages/Delivery";
 import Cart from "./pages/Cart";
-import Collection from "./pages/Collection";
-import FAQ from "./pages/FAQ";
-import Product from "./pages/Product";
 import Profile from "./pages/Profile";
 
 function App() {
@@ -16,13 +15,12 @@ function App() {
         <Navbar />
         <Routes>
           <Route path="/" element={<Hero />} />
-          <Route path="/about" element={<About />} />
-          <Route path="/blog" element={<Blog />} />
-          <Route path="/faq" element={<FAQ />} />
+          <Route path="/categories" element={<Categories />} />
+          <Route path="/deals" element={<Deals />} />
+          <Route path="/whats-new" element={<WhatsNew />} />
+          <Route path="/delivery" element={<Delivery />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/cart" element={<Cart />} />
-          <Route path="/collections" element={<Collection />} />
-          <Route path="/product" element={<Product />} />
         </Routes>
       </Router>
     </div>
