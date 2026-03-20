@@ -1,5 +1,6 @@
 {
   "name": "shopsmart-frontend",
+  "description": "Shopsmart e-commerce storefront (React + Vite)",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -13,11 +14,13 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:integration": "SHOPSMART_INTEGRATION=1 vitest run --config vitest.integration.config.js",
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^7.13.1"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.4.2",

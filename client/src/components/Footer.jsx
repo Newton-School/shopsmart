@@ -5,13 +5,15 @@ export function Footer() {
         <div className="site-footer__brand">
           <span className="site-logo__mark site-logo__mark--sm" aria-hidden="true" />
           <div>
-            <strong className="site-footer__name">ShopSmart</strong>
-            <p className="site-footer__tagline">Smart shopping, simple experience.</p>
+            <strong className="site-footer__name">Shopsmart</strong>
+            <p className="site-footer__tagline">
+              Your e-commerce platform for real products—fast checkout, clear prices.
+            </p>
           </div>
         </div>
         <div className="site-footer__cols">
           <div>
-            <h3 className="site-footer__heading">Shop</h3>
+            <h3 className="site-footer__heading">Store</h3>
             <ul className="site-footer__list">
               <li>
                 <a href="#catalog">All products</a>
@@ -34,7 +36,9 @@ export function Footer() {
           </div>
         </div>
       </div>
-      <p className="site-footer__legal">© {new Date().getFullYear()} ShopSmart. Demo storefront.</p>
+      <p className="site-footer__legal">
+        © {new Date().getFullYear()} Shopsmart. E-commerce platform demo.
+      </p>
     </footer>
   );
 }

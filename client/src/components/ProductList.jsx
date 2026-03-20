@@ -29,9 +29,11 @@ export function ProductList({ products, loading, error }) {
   if (error) {
     return (
       <div className="empty-state empty-state--error" role="alert">
-        <p className="empty-state__title">We couldn&apos;t load products</p>
+        <p className="empty-state__title">We couldn&apos;t load the catalog</p>
         <p className="empty-state__text">{error}</p>
-        <p className="empty-state__hint">Make sure the API is running on port 5001.</p>
+        <p className="empty-state__hint">
+          Check that the Shopsmart server is running (port 5001) and try again.
+        </p>
       </div>
     );
   }
@@ -40,7 +42,10 @@ export function ProductList({ products, loading, error }) {
     return (
       <div className="empty-state">
         <p className="empty-state__title">No products yet</p>
-        <p className="empty-state__text">Run the seed script on the server to add sample items.</p>
+        <p className="empty-state__text">
+          Add inventory to your Shopsmart database (e.g. run the server seed script) to list
+          products here.
+        </p>
       </div>
     );
   }

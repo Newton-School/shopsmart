@@ -1,37 +1,50 @@
+import { BrowserRouter, Routes, Route, Outlet } from 'react-router-dom';
+import { AuthProvider } from './context/AuthContext';
+import { CartProvider } from './context/CartContext';
 import { SiteHeader } from './components/SiteHeader';
-import { Hero } from './components/Hero';
-import { ProductList } from './components/ProductList';
-import { Footer } from './components/Footer';
 import { useHealth } from './hooks/useHealth';
-import { useProducts } from './hooks/useProducts';
+import { HomePage } from './pages/HomePage';
+import { LoginPage } from './pages/LoginPage';
+import { RegisterPage } from './pages/RegisterPage';
+import { CartPage } from './pages/CartPage';
+import { CheckoutPage } from './pages/CheckoutPage';
+import { OrdersPage } from './pages/OrdersPage';
+import { OrderDetailPage } from './pages/OrderDetailPage';
 
-function App() {
+function Layout() {
   const health = useHealth();
-  const { products, loading, error } = useProducts();
-
   return (
     <div className="layout">
       <SiteHeader health={health} />
-      <Hero />
-      <main id="catalog" className="catalog">
-        <div className="catalog__head">
-          <div>
-            <h2 className="catalog__title">Shop the catalog</h2>
-            <p className="catalog__subtitle">
-              Hand-picked items with photos, categories, and live stock from your API.
-            </p>
-          </div>
-          {!loading && !error && (
-            <p className="catalog__count" aria-live="polite">
-              <strong>{products.length}</strong> products
-            </p>
-          )}
-        </div>
-        <ProductList products={products} loading={loading} error={error} />
-      </main>
-      <Footer />
+      <Outlet />
     </div>
   );
 }
 
-export default App;
+function AppRoutes() {
+  return (
+    <Routes>
+      <Route element={<Layout />}>
+        <Route path="/" element={<HomePage />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
+        <Route path="/cart" element={<CartPage />} />
+        <Route path="/checkout" element={<CheckoutPage />} />
+        <Route path="/orders" element={<OrdersPage />} />
+        <Route path="/orders/:id" element={<OrderDetailPage />} />
+      </Route>
+    </Routes>
+  );
+}
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <AuthProvider>
+        <CartProvider>
+          <AppRoutes />
+        </CartProvider>
+      </AuthProvider>
+    </BrowserRouter>
+  );
+}

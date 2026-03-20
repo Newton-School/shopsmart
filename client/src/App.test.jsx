@@ -8,8 +8,7 @@ function mockFetch() {
     if (u.includes('/api/health')) {
       return Promise.resolve({
         ok: true,
-        json: () =>
-          Promise.resolve({ status: 'ok', message: 'Test Msg', timestamp: 'now' }),
+        json: () => Promise.resolve({ status: 'ok', message: 'Test Msg', timestamp: 'now' }),
       });
     }
     if (u.includes('/api/products')) {
@@ -32,15 +31,15 @@ function mockFetch() {
           }),
       });
     }
-    return Promise.resolve({ ok: false, json: () => Promise.resolve({}) });
+    return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
   });
 }
 
 describe('App', () => {
-  it('renders ShopSmart and products section', async () => {
+  it('renders Shopsmart and products section', async () => {
     mockFetch();
     render(<App />);
-    expect(screen.getByRole('link', { name: /ShopSmart/i })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Shopsmart home/i })).toBeInTheDocument();
     expect(await screen.findByText('Test Product')).toBeInTheDocument();
   });
 });

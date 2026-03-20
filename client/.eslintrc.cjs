@@ -18,4 +18,14 @@ module.exports = {
     'no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
     'no-console': ['warn', { allow: ['warn', 'error'] }],
   },
+  overrides: [
+    {
+      files: ['src/context/**/*.{js,jsx}'],
+      rules: { 'react-refresh/only-export-components': 'off' },
+    },
+    {
+      files: ['src/integration/**/*.js'],
+      env: { node: true },
+    },
+  ],
 };
