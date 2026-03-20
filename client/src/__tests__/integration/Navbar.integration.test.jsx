@@ -3,12 +3,15 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it } from "vitest";
 import Navbar from "../../components/Navbar";
+import { CartProvider } from "../../context/CartContext";
 
 const renderNavbar = () =>
   render(
-    <MemoryRouter>
-      <Navbar />
-    </MemoryRouter>,
+    <CartProvider>
+      <MemoryRouter>
+        <Navbar />
+      </MemoryRouter>
+    </CartProvider>
   );
 
 describe("Navbar Integration Tests", () => {
@@ -59,10 +62,9 @@ describe("Navbar Integration Tests", () => {
     );
   });
 
-  it("Cart badge displays correct item count", () => {
+  it("does not render an item count badge when empty", () => {
     renderNavbar();
-    const badge = screen.getByText("2");
-    expect(badge).toBeInTheDocument();
+    expect(screen.queryByText("2")).not.toBeInTheDocument();
   });
 
   it("Logo link sits inside the nav element", () => {

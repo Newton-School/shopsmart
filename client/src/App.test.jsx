@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import App from "./App";
 import { describe, it, expect, vi } from "vitest";
+import { CartProvider } from "./context/CartContext";
 
 describe("App", () => {
   it("renders Shopcart title", () => {
@@ -16,7 +17,7 @@ describe("App", () => {
       }),
     );
 
-    render(<App />);
+    render(<CartProvider><App /></CartProvider>);
     const linkElement = screen.getByText(/Shopcart/i);
     expect(linkElement).toBeInTheDocument();
   });

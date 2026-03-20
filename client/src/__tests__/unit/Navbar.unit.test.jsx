@@ -2,12 +2,15 @@ import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it } from "vitest";
 import Navbar from "../../components/Navbar";
+import { CartProvider } from "../../context/CartContext";
 
 const renderNavbar = () =>
   render(
-    <MemoryRouter>
-      <Navbar />
-    </MemoryRouter>,
+    <CartProvider>
+      <MemoryRouter>
+        <Navbar />
+      </MemoryRouter>
+    </CartProvider>
   );
 
 describe("Navbar — Unit Tests", () => {
@@ -56,9 +59,9 @@ describe("Navbar — Unit Tests", () => {
     expect(cartLink).toHaveAttribute("href", "/cart");
   });
 
-  it('renders cart badge with count "2"', () => {
+  it('does not render cart badge when cart is empty', () => {
     renderNavbar();
-    expect(screen.getByText("2")).toBeInTheDocument();
+    expect(screen.queryByText("2")).not.toBeInTheDocument();
   });
 
   it('renders account icon link pointing to "/profile"', () => {
