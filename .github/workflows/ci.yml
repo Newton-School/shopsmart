@@ -7,9 +7,6 @@ on:
     branches: [main]
 
 jobs:
-  # ──────────────────────────────────────────────
-  # Phase 1 — Testing (runs on every push/PR)
-  # ──────────────────────────────────────────────
   test:
     name: Phase 1 - Testing (${{ matrix.app }})
     runs-on: ubuntu-latest
@@ -45,15 +42,11 @@ jobs:
           name: test-report-${{ matrix.app }}
           path: ${{ matrix.app }}/test-report.json
 
-  # ──────────────────────────────────────────────
-  # Phase 2 — Infrastructure Provisioning (Terraform)
-  # Only runs on main branch after tests pass
-  # ──────────────────────────────────────────────
   terraform:
     name: Phase 2 - Infrastructure Provisioning
     runs-on: ubuntu-latest
     needs: test
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: github.ref == 'refs/heads/main'
 
     steps:
       - name: Checkout code
@@ -86,16 +79,12 @@ jobs:
         working-directory: terraform
         run: terraform apply -auto-approve tfplan
 
-  # ──────────────────────────────────────────────
-  # Phase 3 — Container Build & ECR Push
-  # Only runs after Terraform provisions infrastructure
-  # ──────────────────────────────────────────────
   build-and-push:
     name: Phase 3 - Container Build & ECR Push
     runs-on: ubuntu-latest
     needs: terraform
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-
+    if: github.ref == 'refs/heads/main'
+    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -119,10 +108,9 @@ jobs:
           IMAGE_TAG: ${{ github.sha }}
         working-directory: server
         run: |
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -t $ECR_REGISTRY/$ECR_REPOSITORY:latest .
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
-
+          
       - name: Build and Push Frontend Image
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
@@ -130,20 +118,15 @@ jobs:
           IMAGE_TAG: ${{ github.sha }}
         working-directory: client
         run: |
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -t $ECR_REGISTRY/$ECR_REPOSITORY:latest .
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
 
-  # ──────────────────────────────────────────────
-  # Phase 3 — Deploy to ECS Fargate
-  # Only runs after images are pushed to ECR
-  # ──────────────────────────────────────────────
   deploy:
     name: Phase 3 - Deploy to ECS Fargate
     runs-on: ubuntu-latest
     needs: build-and-push
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-
+    if: github.ref == 'refs/heads/main'
+    
     steps:
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -155,28 +138,8 @@ jobs:
 
       - name: Deploy Backend Service
         run: |
-          aws ecs update-service \
-            --cluster shopsmart-cluster \
-            --service shopsmart-backend-service \
-            --force-new-deployment
+          aws ecs update-service --cluster shopsmart-cluster --service shopsmart-backend-service --force-new-deployment
 
       - name: Deploy Frontend Service
         run: |
-          aws ecs update-service \
-            --cluster shopsmart-cluster \
-            --service shopsmart-frontend-service \
-            --force-new-deployment
-
-      - name: Verify Services Running
-        run: |
-          echo "Waiting for backend service to stabilize..."
-          aws ecs wait services-stable \
-            --cluster shopsmart-cluster \
-            --services shopsmart-backend-service
-          echo "Backend service is stable!"
-
-          echo "Waiting for frontend service to stabilize..."
-          aws ecs wait services-stable \
-            --cluster shopsmart-cluster \
-            --services shopsmart-frontend-service
-          echo "Frontend service is stable!"
+          aws ecs update-service --cluster shopsmart-cluster --service shopsmart-frontend-service --force-new-deployment
