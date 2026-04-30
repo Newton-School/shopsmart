@@ -1,15 +1,17 @@
-name: Backend CI
+name: Full-Stack CI/CD Pipeline
 
 on:
   push:
-    branches: [dev,main]
+    branches: [main, dev]
   pull_request:
     branches: [main]
 
-    
 jobs:
-  dependency-check:
-    name: Dependency Check (${{ matrix.app }})
+  # ──────────────────────────────────────────────
+  # Phase 1 — Testing (runs on every push/PR)
+  # ──────────────────────────────────────────────
+  test:
+    name: Phase 1 - Testing (${{ matrix.app }})
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -22,7 +24,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: lts/*
+          node-version: 20
           cache: npm
           cache-dependency-path: ${{ matrix.app }}/package-lock.json
 
@@ -30,91 +32,151 @@ jobs:
         working-directory: ${{ matrix.app }}
         run: npm ci
 
-      - name: Audit production dependencies
+      - name: Run Unit and Integration Tests
         working-directory: ${{ matrix.app }}
-        run: npm audit --omit=dev --audit-level=high
+        env:
+          CI: true
+        run: npm run test:report
 
-  lint-and-test:
+      - name: Upload Test Reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-report-${{ matrix.app }}
+          path: ${{ matrix.app }}/test-report.json
+
+  # ──────────────────────────────────────────────
+  # Phase 2 — Infrastructure Provisioning (Terraform)
+  # Only runs on main branch after tests pass
+  # ──────────────────────────────────────────────
+  terraform:
+    name: Phase 2 - Infrastructure Provisioning
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: server
-
-    env:
-      NODE_ENV: test
-      MONGO_URI: ${{ secrets.MONGO_URI }}
-      JWT_SECRET: ${{ secrets.JWT_SECRET || 'ci-test-secret' }}
+    needs: test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
         with:
-          node-version: lts/*
-          cache: npm
-          cache-dependency-path: server/package-lock.json
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
 
-      - name: Verify required secrets
-        run: |
-          if [ -z "$MONGO_URI" ]; then
-            echo "MONGO_URI secret is missing. Add it in GitHub Settings > Secrets and variables > Actions."
-            exit 1
-          fi
+      - name: Terraform Init
+        working-directory: terraform
+        run: terraform init
 
-      - name: Run ESLint
-        run: npm run lint
+      - name: Terraform Validate
+        working-directory: terraform
+        run: terraform validate
 
-      - name: Run tests
-        run: npm test
+      - name: Terraform Plan
+        working-directory: terraform
+        run: terraform plan -out=tfplan
 
-  deploy:
-    name: Deploy to EC2
+      - name: Terraform Apply
+        working-directory: terraform
+        run: terraform apply -auto-approve tfplan
+
+  # ──────────────────────────────────────────────
+  # Phase 3 — Container Build & ECR Push
+  # Only runs after Terraform provisions infrastructure
+  # ──────────────────────────────────────────────
+  build-and-push:
+    name: Phase 3 - Container Build & ECR Push
     runs-on: ubuntu-latest
-
-    needs: [dependency-check, lint-and-test]
-
-
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: terraform
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
 
     steps:
-      - name: Check SSH reachability
-        env:
-          HOST: ${{ secrets.EC2_HOST }}
-          PORT: ${{ secrets.EC2_PORT || '22' }}
-        run: |
-          echo "Checking TCP connectivity to $HOST:$PORT"
-          nc -zvw5 "$HOST" "$PORT"
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - name: Deploy over SSH
-        uses: appleboy/ssh-action@v1.2.0
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
         with:
-          host: ${{ secrets.EC2_HOST }}
-          port: ${{ secrets.EC2_PORT || '22' }}
-          username: ${{ secrets.EC2_USER }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          timeout: 60s
-          script_stop: true
-          script: |
-            set -euo pipefail
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: ${{ secrets.AWS_REGION }}
 
-            APP_DIR="$HOME/shopsmart/server"
-            cd "$APP_DIR"
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
 
-            git fetch --all --prune
-            git reset --hard origin/main
+      - name: Build and Push Backend Image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: shopsmart-backend
+          IMAGE_TAG: ${{ github.sha }}
+        working-directory: server
+        run: |
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -t $ECR_REGISTRY/$ECR_REPOSITORY:latest .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
 
-            npm install
+      - name: Build and Push Frontend Image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: shopsmart-frontend
+          IMAGE_TAG: ${{ github.sha }}
+        working-directory: client
+        run: |
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -t $ECR_REGISTRY/$ECR_REPOSITORY:latest .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
 
-            if pm2 describe backend > /dev/null 2>&1; then
-              pm2 restart backend
-            else
-              pm2 start src/index.js --name backend
-            fi
+  # ──────────────────────────────────────────────
+  # Phase 3 — Deploy to ECS Fargate
+  # Only runs after images are pushed to ECR
+  # ──────────────────────────────────────────────
+  deploy:
+    name: Phase 3 - Deploy to ECS Fargate
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
 
-            # 8) Persist PM2 process list for reboot recovery
-            pm2 save
+    steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Deploy Backend Service
+        run: |
+          aws ecs update-service \
+            --cluster shopsmart-cluster \
+            --service shopsmart-backend-service \
+            --force-new-deployment
+
+      - name: Deploy Frontend Service
+        run: |
+          aws ecs update-service \
+            --cluster shopsmart-cluster \
+            --service shopsmart-frontend-service \
+            --force-new-deployment
+
+      - name: Verify Services Running
+        run: |
+          echo "Waiting for backend service to stabilize..."
+          aws ecs wait services-stable \
+            --cluster shopsmart-cluster \
+            --services shopsmart-backend-service
+          echo "Backend service is stable!"
+
+          echo "Waiting for frontend service to stabilize..."
+          aws ecs wait services-stable \
+            --cluster shopsmart-cluster \
+            --services shopsmart-frontend-service
+          echo "Frontend service is stable!"
