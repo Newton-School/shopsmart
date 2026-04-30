@@ -1,7 +1,8 @@
 const mongoose = require('mongoose');
 const request = require('supertest');
+const { MongoMemoryServer } = require('mongodb-memory-server');
 
-require('dotenv').config();
+process.env.JWT_SECRET = 'test-secret';
 
 const app = require('../src/app');
 const User = require('../src/models/db.Users');
@@ -19,36 +20,35 @@ describe('Auth integration tests', () => {
 
     let authToken = '';
     let signupPath = '/api/auth/register';
+    let mongoServer;
 
     beforeAll(async () => {
-        if (!process.env.MONGO_URI) {
-            throw new Error('MONGO_URI is required to run integration tests');
-        }
+        mongoServer = await MongoMemoryServer.create();
+        const mongoUri = mongoServer.getUri();
 
         if (mongoose.connection.readyState === 0) {
-            await mongoose.connect(process.env.MONGO_URI);
+            await mongoose.connect(mongoUri);
         }
 
         const probeEmail = `probe_${Date.now()}_${Math.random().toString(36).slice(2)}@shopsmart.com`;
-            const probeRes = await request(app).post(signupCandidates).send({
-                name: 'Probe User',
-                email: probeEmail,
-                password: 'ProbePass123!'
-            });
+        const probeRes = await request(app).post(signupCandidates).send({
+            name: 'Probe User',
+            email: probeEmail,
+            password: 'ProbePass123!'
+        });
 
-            if (probeRes.statusCode !== 404) {
-                signupPath = signupCandidates;
-                await User.deleteOne({ email: probeEmail });
-            }
+        if (probeRes.statusCode !== 404) {
+            signupPath = signupCandidates;
+            await User.deleteOne({ email: probeEmail });
+        }
     });
 
     afterAll(async () => {
-        await User.deleteMany({
-            email: { $regex: /@shopsmart\.com$/ }
-        });
-
         if (mongoose.connection.readyState !== 0) {
-            await mongoose.connection.close();
+            await mongoose.disconnect();
+        }
+        if (mongoServer) {
+            await mongoServer.stop();
         }
     });
 
