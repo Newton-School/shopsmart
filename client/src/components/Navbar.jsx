@@ -11,46 +11,46 @@ const Navbar = () => {
   };
 
   return (
-    <nav className="bg-white shadow">
+    <nav className="bg-zinc-900 border-b border-zinc-800">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex items-center">
-            <Link to="/" className="text-xl font-bold text-blue-600">
+            <Link to="/" className="text-lg font-medium text-zinc-200">
               ShopSmart
             </Link>
           </div>
           <div className="flex items-center space-x-4">
-            <Link to="/products" className="text-gray-600 hover:text-blue-600 px-3 py-2 rounded-md font-medium">
+            <Link to="/products" className="text-zinc-400 hover:text-zinc-200 px-3 py-2 rounded text-sm font-medium transition-colors">
               Products
             </Link>
             {isAuthenticated ? (
               <>
-                <Link to="/dashboard" className="text-gray-600 hover:text-blue-600 px-3 py-2 rounded-md font-medium flex items-center gap-1">
-                  <User size={18} /> Dashboard
+                <Link to="/dashboard" className="text-zinc-400 hover:text-zinc-200 px-3 py-2 rounded text-sm font-medium flex items-center gap-1 transition-colors">
+                  <User size={16} /> Dashboard
                 </Link>
                 <button
                   onClick={handleLogout}
-                  className="text-red-500 hover:text-red-700 px-3 py-2 rounded-md font-medium flex items-center gap-1"
+                  className="text-zinc-400 hover:text-zinc-200 px-3 py-2 rounded text-sm font-medium flex items-center gap-1 transition-colors"
                 >
-                  <LogOut size={18} /> Logout
+                  <LogOut size={16} /> Logout
                 </button>
               </>
             ) : (
               <>
-                <Link to="/login" className="text-gray-600 hover:text-blue-600 px-3 py-2 rounded-md font-medium">
+                <Link to="/login" className="text-zinc-400 hover:text-zinc-200 px-3 py-2 rounded text-sm font-medium transition-colors">
                   Login
                 </Link>
                 <Link
                   to="/signup"
-                  className="bg-blue-600 text-white hover:bg-blue-700 px-4 py-2 rounded-md font-medium transition-colors"
+                  className="bg-zinc-800 text-zinc-300 hover:bg-zinc-700 px-4 py-2 rounded text-sm font-medium transition-colors border border-zinc-700"
                 >
                   Sign Up
                 </Link>
               </>
             )}
-            <button className="text-gray-600 hover:text-blue-600 relative p-2">
-              <ShoppingCart size={24} />
-              <span className="absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white transform translate-x-1/2 -translate-y-1/2 bg-red-600 rounded-full">
+            <button className="text-zinc-400 hover:text-zinc-200 relative p-2 transition-colors">
+              <ShoppingCart size={20} />
+              <span className="absolute top-0 right-0 inline-flex items-center justify-center px-1.5 py-0.5 text-[10px] font-bold leading-none text-zinc-900 transform translate-x-1/4 -translate-y-1/4 bg-zinc-300 rounded-full">
                 0
               </span>
             </button>

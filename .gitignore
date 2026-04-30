@@ -7,3 +7,4 @@ coverage
 .vercel
 client/.env.production
 .gitignore
+client/test-report.json
