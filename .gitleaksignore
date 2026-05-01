@@ -1,0 +1,3 @@
+# Allowlist for gitleaks false positives.
+# Format: <commit-sha>:<filepath>:<rule-id>
+# Or use # comments and bare paths to ignore everything in a file.

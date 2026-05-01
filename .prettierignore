@@ -1,0 +1,11 @@
+node_modules
+dist
+build
+coverage
+playwright-report
+test-results
+.husky/_
+package-lock.json
+*.min.js
+*.min.css
+client/src/__tests__
