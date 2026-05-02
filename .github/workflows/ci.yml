@@ -88,24 +88,43 @@ jobs:
         working-directory: terraform
         run: terraform validate
 
+      - name: Reset Terraform State (prevent stale destroy/recreate cycles)
+        working-directory: terraform
+        run: |
+          set +e
+          echo "Clearing stale state to ensure a clean import..."
+          terraform state list 2>/dev/null | while read resource; do
+            echo "Removing from state: $resource"
+            terraform state rm "$resource" 2>/dev/null || true
+          done
+          echo "State cleared. Ready for fresh import."
+
       - name: Import Existing Resources (if any)
         working-directory: terraform
-        # Each import is wrapped in its own if-block so a failed import
-        # does NOT abort the entire step.  2>/dev/null silences "already managed"
-        # messages; the exit-0 wrapper ensures the step always succeeds.
         run: |
-          set +e   # don't exit on individual command failure
+          set +e   # never abort on individual failures
 
-          tf_import() { terraform import "$1" "$2" 2>/dev/null; return 0; }
+          # Only import if (a) not already in state AND (b) resource exists in AWS
+          tf_import() {
+            local address="$1"
+            local id="$2"
+            if terraform state show "$address" >/dev/null 2>&1; then
+              echo "SKIP (already in state): $address"
+              return 0
+            fi
+            echo "Importing: $address = $id"
+            terraform import "$address" "$id" 2>&1 | grep -v "^data\." | grep -v "^Reading\|^Read complete" || true
+            return 0
+          }
 
-          # ── S3 / ECR / CloudWatch ────────────────────────────────────────
+          # ── S3 / ECR / CloudWatch ─────────────────────────────────────
           tf_import aws_s3_bucket.artifacts                 shopsmart-artifacts-2026-unique
           tf_import aws_ecr_repository.backend              shopsmart-backend
           tf_import aws_ecr_repository.frontend             shopsmart-frontend
           tf_import aws_cloudwatch_log_group.backend        /ecs/shopsmart-backend
           tf_import aws_cloudwatch_log_group.frontend       /ecs/shopsmart-frontend
 
-          # ── ECS Cluster ──────────────────────────────────────────────────
+          # ── ECS Cluster ───────────────────────────────────────────────
           CLUSTER_ARN=$(aws ecs describe-clusters --clusters shopsmart-cluster \
             --query 'clusters[0].clusterArn' --output text 2>/dev/null)
           if [ -n "$CLUSTER_ARN" ] && [ "$CLUSTER_ARN" != "None" ]; then
@@ -150,22 +169,13 @@ jobs:
           if [ -n "$RT_ID" ] && [ "$RT_ID" != "None" ]; then
             tf_import aws_route_table.public "$RT_ID"
 
+            # Correct import format: subnet-id/route-table-id
             if [ -n "$SUBNET_1" ] && [ "$SUBNET_1" != "None" ]; then
-              ASSOC_1=$(aws ec2 describe-route-tables --route-table-ids "$RT_ID" \
-                --query "RouteTables[0].Associations[?SubnetId=='$SUBNET_1'].RouteTableAssociationId" \
-                --output text 2>/dev/null)
-              if [ -n "$ASSOC_1" ] && [ "$ASSOC_1" != "None" ]; then
-                tf_import 'aws_route_table_association.public[0]' "$ASSOC_1"
-              fi
+              tf_import 'aws_route_table_association.public[0]' "${SUBNET_1}/${RT_ID}"
             fi
 
             if [ -n "$SUBNET_2" ] && [ "$SUBNET_2" != "None" ]; then
-              ASSOC_2=$(aws ec2 describe-route-tables --route-table-ids "$RT_ID" \
-                --query "RouteTables[0].Associations[?SubnetId=='$SUBNET_2'].RouteTableAssociationId" \
-                --output text 2>/dev/null)
-              if [ -n "$ASSOC_2" ] && [ "$ASSOC_2" != "None" ]; then
-                tf_import 'aws_route_table_association.public[1]' "$ASSOC_2"
-              fi
+              tf_import 'aws_route_table_association.public[1]' "${SUBNET_2}/${RT_ID}"
             fi
           fi
 
