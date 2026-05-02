@@ -7,6 +7,12 @@ terraform {
       version = "~> 5.0"
     }
   }
+
+  backend "s3" {
+    bucket = "shopsmart-tf-state-2026"
+    key    = "shopsmart/terraform.tfstate"
+    region = "us-east-1"
+  }
 }
 
 provider "aws" {
@@ -310,6 +316,7 @@ resource "aws_ecs_cluster" "main" {
 resource "aws_cloudwatch_log_group" "backend" {
   name              = "/ecs/shopsmart-backend"
   retention_in_days = 7
+  skip_destroy      = true
 
   tags = {
     Name = "shopsmart-backend-logs"
@@ -319,6 +326,7 @@ resource "aws_cloudwatch_log_group" "backend" {
 resource "aws_cloudwatch_log_group" "frontend" {
   name              = "/ecs/shopsmart-frontend"
   retention_in_days = 7
+  skip_destroy      = true
 
   tags = {
     Name = "shopsmart-frontend-logs"
