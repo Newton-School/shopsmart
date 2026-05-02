@@ -282,33 +282,12 @@ resource "aws_lb_listener_rule" "backend_api" {
 }
 
 # ─────────────────────────────────────────────
-# IAM Roles for ECS
+# IAM — use pre-existing LabRole (AWS Academy
+# lab accounts cannot create IAM roles)
 # ─────────────────────────────────────────────
 
-resource "aws_iam_role" "ecs_task_execution" {
-  name = "shopsmart-ecs-task-execution-role"
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Action = "sts:AssumeRole"
-        Effect = "Allow"
-        Principal = {
-          Service = "ecs-tasks.amazonaws.com"
-        }
-      }
-    ]
-  })
-
-  tags = {
-    Name = "shopsmart-ecs-execution-role"
-  }
-}
-
-resource "aws_iam_role_policy_attachment" "ecs_task_execution" {
-  role       = aws_iam_role.ecs_task_execution.name
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+data "aws_iam_role" "lab_role" {
+  name = "LabRole"
 }
 
 # ─────────────────────────────────────────────
@@ -356,7 +335,7 @@ resource "aws_ecs_task_definition" "backend" {
   requires_compatibilities = ["FARGATE"]
   cpu                      = "256"
   memory                   = "512"
-  execution_role_arn       = aws_iam_role.ecs_task_execution.arn
+  execution_role_arn       = data.aws_iam_role.lab_role.arn
 
   container_definitions = jsonencode([
     {
@@ -400,7 +379,7 @@ resource "aws_ecs_task_definition" "frontend" {
   requires_compatibilities = ["FARGATE"]
   cpu                      = "256"
   memory                   = "512"
-  execution_role_arn       = aws_iam_role.ecs_task_execution.arn
+  execution_role_arn       = data.aws_iam_role.lab_role.arn
 
   container_definitions = jsonencode([
     {
