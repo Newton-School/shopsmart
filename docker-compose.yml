@@ -7,12 +7,12 @@ services:
       dockerfile: Dockerfile
     container_name: shopsmart-backend
     ports:
-      - "5000:5000"
+      - "${SERVER_PORT}:${SERVER_PORT}"
     environment:
-      - PORT=5000
-      - MONGO_URI=mongodb://mongodb:27017/shopsmart
-      - JWT_SECRET=supersecretjwtkey_12345
-      - FRONTEND_URL=http://localhost:5173
+      - PORT=${SERVER_PORT}
+      - MONGO_URI=${MONGO_URI}
+      - JWT_SECRET=${JWT_SECRET}
+      - FRONTEND_URL=${FRONTEND_URL}
     depends_on:
       mongodb:
         condition: service_healthy
