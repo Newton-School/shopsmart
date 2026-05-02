@@ -60,6 +60,15 @@ jobs:
           aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
           aws-region: ${{ secrets.AWS_REGION }}
 
+      - name: Create Terraform State Bucket (if not exists)
+        run: |
+          aws s3api create-bucket \
+            --bucket shopsmart-tf-state-2026 \
+            --region ${{ secrets.AWS_REGION }} 2>/dev/null || true
+          aws s3api put-bucket-versioning \
+            --bucket shopsmart-tf-state-2026 \
+            --versioning-configuration Status=Enabled 2>/dev/null || true
+
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
@@ -70,6 +79,27 @@ jobs:
       - name: Terraform Validate
         working-directory: terraform
         run: terraform validate
+
+      - name: Import Existing Resources (if any)
+        working-directory: terraform
+        run: |
+          REGION=${{ secrets.AWS_REGION }}
+          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+
+          terraform import aws_s3_bucket.artifacts shopsmart-artifacts-2026-unique 2>/dev/null || true
+          terraform import aws_ecr_repository.backend shopsmart-backend 2>/dev/null || true
+          terraform import aws_ecr_repository.frontend shopsmart-frontend 2>/dev/null || true
+          terraform import aws_cloudwatch_log_group.backend /ecs/shopsmart-backend 2>/dev/null || true
+          terraform import aws_cloudwatch_log_group.frontend /ecs/shopsmart-frontend 2>/dev/null || true
+
+          ALB_ARN=$(aws elbv2 describe-load-balancers --names shopsmart-alb --query 'LoadBalancers[0].LoadBalancerArn' --output text 2>/dev/null) || true
+          [ "$ALB_ARN" != "None" ] && [ -n "$ALB_ARN" ] && terraform import aws_lb.main $ALB_ARN 2>/dev/null || true
+
+          BACKEND_TG_ARN=$(aws elbv2 describe-target-groups --names shopsmart-backend-tg --query 'TargetGroups[0].TargetGroupArn' --output text 2>/dev/null) || true
+          [ "$BACKEND_TG_ARN" != "None" ] && [ -n "$BACKEND_TG_ARN" ] && terraform import aws_lb_target_group.backend $BACKEND_TG_ARN 2>/dev/null || true
+
+          FRONTEND_TG_ARN=$(aws elbv2 describe-target-groups --names shopsmart-frontend-tg --query 'TargetGroups[0].TargetGroupArn' --output text 2>/dev/null) || true
+          [ "$FRONTEND_TG_ARN" != "None" ] && [ -n "$FRONTEND_TG_ARN" ] && terraform import aws_lb_target_group.frontend $FRONTEND_TG_ARN 2>/dev/null || true
 
       - name: Terraform Plan
         working-directory: terraform
