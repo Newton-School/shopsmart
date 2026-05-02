@@ -84,22 +84,71 @@ jobs:
         working-directory: terraform
         run: |
           REGION=${{ secrets.AWS_REGION }}
-          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 
+          # --- Simple named resources ---
           terraform import aws_s3_bucket.artifacts shopsmart-artifacts-2026-unique 2>/dev/null || true
           terraform import aws_ecr_repository.backend shopsmart-backend 2>/dev/null || true
           terraform import aws_ecr_repository.frontend shopsmart-frontend 2>/dev/null || true
           terraform import aws_cloudwatch_log_group.backend /ecs/shopsmart-backend 2>/dev/null || true
           terraform import aws_cloudwatch_log_group.frontend /ecs/shopsmart-frontend 2>/dev/null || true
 
-          ALB_ARN=$(aws elbv2 describe-load-balancers --names shopsmart-alb --query 'LoadBalancers[0].LoadBalancerArn' --output text 2>/dev/null) || true
-          [ "$ALB_ARN" != "None" ] && [ -n "$ALB_ARN" ] && terraform import aws_lb.main $ALB_ARN 2>/dev/null || true
+          # --- ECS Cluster ---
+          CLUSTER_ARN=$(aws ecs describe-clusters --clusters shopsmart-cluster --query 'clusters[0].clusterArn' --output text 2>/dev/null || true)
+          [ -n "$CLUSTER_ARN" ] && [ "$CLUSTER_ARN" != "None" ] && terraform import aws_ecs_cluster.main $CLUSTER_ARN 2>/dev/null || true
 
-          BACKEND_TG_ARN=$(aws elbv2 describe-target-groups --names shopsmart-backend-tg --query 'TargetGroups[0].TargetGroupArn' --output text 2>/dev/null) || true
-          [ "$BACKEND_TG_ARN" != "None" ] && [ -n "$BACKEND_TG_ARN" ] && terraform import aws_lb_target_group.backend $BACKEND_TG_ARN 2>/dev/null || true
+          # --- VPC ---
+          VPC_ID=$(aws ec2 describe-vpcs --filters "Name=tag:Name,Values=shopsmart-vpc" --query 'Vpcs[0].VpcId' --output text 2>/dev/null || true)
+          [ -n "$VPC_ID" ] && [ "$VPC_ID" != "None" ] && terraform import aws_vpc.main $VPC_ID 2>/dev/null || true
 
-          FRONTEND_TG_ARN=$(aws elbv2 describe-target-groups --names shopsmart-frontend-tg --query 'TargetGroups[0].TargetGroupArn' --output text 2>/dev/null) || true
-          [ "$FRONTEND_TG_ARN" != "None" ] && [ -n "$FRONTEND_TG_ARN" ] && terraform import aws_lb_target_group.frontend $FRONTEND_TG_ARN 2>/dev/null || true
+          # --- Internet Gateway ---
+          IGW_ID=$(aws ec2 describe-internet-gateways --filters "Name=tag:Name,Values=shopsmart-igw" --query 'InternetGateways[0].InternetGatewayId' --output text 2>/dev/null || true)
+          [ -n "$IGW_ID" ] && [ "$IGW_ID" != "None" ] && terraform import aws_internet_gateway.main $IGW_ID 2>/dev/null || true
+
+          # --- Subnets ---
+          SUBNET_1=$(aws ec2 describe-subnets --filters "Name=tag:Name,Values=shopsmart-public-1" --query 'Subnets[0].SubnetId' --output text 2>/dev/null || true)
+          [ -n "$SUBNET_1" ] && [ "$SUBNET_1" != "None" ] && terraform import 'aws_subnet.public[0]' $SUBNET_1 2>/dev/null || true
+
+          SUBNET_2=$(aws ec2 describe-subnets --filters "Name=tag:Name,Values=shopsmart-public-2" --query 'Subnets[0].SubnetId' --output text 2>/dev/null || true)
+          [ -n "$SUBNET_2" ] && [ "$SUBNET_2" != "None" ] && terraform import 'aws_subnet.public[1]' $SUBNET_2 2>/dev/null || true
+
+          # --- Route Table ---
+          RT_ID=$(aws ec2 describe-route-tables --filters "Name=tag:Name,Values=shopsmart-public-rt" --query 'RouteTables[0].RouteTableId' --output text 2>/dev/null || true)
+          [ -n "$RT_ID" ] && [ "$RT_ID" != "None" ] && terraform import aws_route_table.public $RT_ID 2>/dev/null || true
+
+          # --- Route Table Associations ---
+          if [ -n "$RT_ID" ] && [ "$RT_ID" != "None" ] && [ -n "$SUBNET_1" ] && [ "$SUBNET_1" != "None" ]; then
+            ASSOC_1=$(aws ec2 describe-route-tables --route-table-ids $RT_ID --query "RouteTables[0].Associations[?SubnetId=='$SUBNET_1'].RouteTableAssociationId" --output text 2>/dev/null || true)
+            [ -n "$ASSOC_1" ] && [ "$ASSOC_1" != "None" ] && terraform import 'aws_route_table_association.public[0]' $ASSOC_1 2>/dev/null || true
+          fi
+          if [ -n "$RT_ID" ] && [ "$RT_ID" != "None" ] && [ -n "$SUBNET_2" ] && [ "$SUBNET_2" != "None" ]; then
+            ASSOC_2=$(aws ec2 describe-route-tables --route-table-ids $RT_ID --query "RouteTables[0].Associations[?SubnetId=='$SUBNET_2'].RouteTableAssociationId" --output text 2>/dev/null || true)
+            [ -n "$ASSOC_2" ] && [ "$ASSOC_2" != "None" ] && terraform import 'aws_route_table_association.public[1]' $ASSOC_2 2>/dev/null || true
+          fi
+
+          # --- Security Groups ---
+          ALB_SG=$(aws ec2 describe-security-groups --filters "Name=tag:Name,Values=shopsmart-alb-sg" --query 'SecurityGroups[0].GroupId' --output text 2>/dev/null || true)
+          [ -n "$ALB_SG" ] && [ "$ALB_SG" != "None" ] && terraform import aws_security_group.alb $ALB_SG 2>/dev/null || true
+
+          ECS_SG=$(aws ec2 describe-security-groups --filters "Name=tag:Name,Values=shopsmart-ecs-sg" --query 'SecurityGroups[0].GroupId' --output text 2>/dev/null || true)
+          [ -n "$ECS_SG" ] && [ "$ECS_SG" != "None" ] && terraform import aws_security_group.ecs $ECS_SG 2>/dev/null || true
+
+          # --- ALB, Target Groups, Listener, Listener Rule ---
+          ALB_ARN=$(aws elbv2 describe-load-balancers --names shopsmart-alb --query 'LoadBalancers[0].LoadBalancerArn' --output text 2>/dev/null || true)
+          [ -n "$ALB_ARN" ] && [ "$ALB_ARN" != "None" ] && terraform import aws_lb.main $ALB_ARN 2>/dev/null || true
+
+          BACKEND_TG_ARN=$(aws elbv2 describe-target-groups --names shopsmart-backend-tg --query 'TargetGroups[0].TargetGroupArn' --output text 2>/dev/null || true)
+          [ -n "$BACKEND_TG_ARN" ] && [ "$BACKEND_TG_ARN" != "None" ] && terraform import aws_lb_target_group.backend $BACKEND_TG_ARN 2>/dev/null || true
+
+          FRONTEND_TG_ARN=$(aws elbv2 describe-target-groups --names shopsmart-frontend-tg --query 'TargetGroups[0].TargetGroupArn' --output text 2>/dev/null || true)
+          [ -n "$FRONTEND_TG_ARN" ] && [ "$FRONTEND_TG_ARN" != "None" ] && terraform import aws_lb_target_group.frontend $FRONTEND_TG_ARN 2>/dev/null || true
+
+          if [ -n "$ALB_ARN" ] && [ "$ALB_ARN" != "None" ]; then
+            LISTENER_ARN=$(aws elbv2 describe-listeners --load-balancer-arn $ALB_ARN --query 'Listeners[0].ListenerArn' --output text 2>/dev/null || true)
+            [ -n "$LISTENER_ARN" ] && [ "$LISTENER_ARN" != "None" ] && terraform import aws_lb_listener.http $LISTENER_ARN 2>/dev/null || true
+
+            RULE_ARN=$(aws elbv2 describe-rules --listener-arn $LISTENER_ARN --query "Rules[?Priority=='100'].RuleArn" --output text 2>/dev/null || true)
+            [ -n "$RULE_ARN" ] && [ "$RULE_ARN" != "None" ] && terraform import aws_lb_listener_rule.backend_api $RULE_ARN 2>/dev/null || true
+          fi
 
       - name: Terraform Plan
         working-directory: terraform
