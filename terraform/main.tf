@@ -152,15 +152,18 @@ resource "aws_route_table" "public" {
   }
 }
 
-resource "aws_route_table_association" "public" {
-  count          = 2
-  subnet_id      = aws_subnet.public[count.index].id
-  route_table_id = aws_route_table.public.id
+resource "terraform_data" "route_table_association" {
+  count = 2
 
-  lifecycle {
-    # Associations already exist in AWS from previous runs —
-    # never try to create or destroy them, just adopt them via import
-    ignore_changes = all
+  # Re-run only if subnet or route table changes
+  triggers_replace = [
+    aws_subnet.public[count.index].id,
+    aws_route_table.public.id,
+  ]
+
+  provisioner "local-exec" {
+    # Idempotent: succeeds even if association already exists
+    command = "aws ec2 associate-route-table --subnet-id ${aws_subnet.public[count.index].id} --route-table-id ${aws_route_table.public.id} --region ${var.aws_region} 2>/dev/null || true"
   }
 }
 

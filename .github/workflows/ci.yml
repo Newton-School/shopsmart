@@ -136,18 +136,13 @@ jobs:
             fi
           fi
 
-          # ── Route Table + Associations (scoped to current VPC) ────────
+          # ── Route Table (only — associations handled by local-exec now) ──
           if [ -n "$VPC_ID" ] && [ "$VPC_ID" != "None" ]; then
             RT_ID=$(aws ec2 describe-route-tables \
               --filters "Name=vpc-id,Values=$VPC_ID" "Name=tag:Name,Values=shopsmart-public-rt" \
               --query 'RouteTables[0].RouteTableId' --output text 2>/dev/null)
             if [ -n "$RT_ID" ] && [ "$RT_ID" != "None" ]; then
               tf_import aws_route_table.public "$RT_ID"
-              # Association format: subnet-id/route-table-id
-              [ -n "$SUBNET_1" ] && [ "$SUBNET_1" != "None" ] && \
-                tf_import 'aws_route_table_association.public[0]' "${SUBNET_1}/${RT_ID}"
-              [ -n "$SUBNET_2" ] && [ "$SUBNET_2" != "None" ] && \
-                tf_import 'aws_route_table_association.public[1]' "${SUBNET_2}/${RT_ID}"
             fi
           fi
 
