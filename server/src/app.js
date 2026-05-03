@@ -1,13 +1,18 @@
 const express = require('express');
 const cors = require('cors');
-
+const authRoutes = require('./routes/auth.Routes');
 const app = express();
 
-// Middleware
-app.use(cors());
+app.use(cors({
+  origin: [process.env.FRONTEND_URL],
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(express.json());
 
-// Health Check Route
+
+app.use('/api/auth', authRoutes);
+
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
@@ -16,7 +21,6 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Root Route (optional, just to show something)
 app.get('/', (req, res) => {
   res.send('ShopSmart Backend Service');
 });

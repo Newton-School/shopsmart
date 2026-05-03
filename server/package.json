@@ -7,15 +7,21 @@
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
     "test": "jest",
-    "lint": "echo 'No linter configured yet'"
+    "test:report": "jest --json --outputFile=test-report.json",
+    "lint": "eslint ."
   },
   "dependencies": {
+    "bcryptjs": "^3.0.3",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
-    "express": "^4.19.2"
+    "express": "^4.19.2",
+    "jsonwebtoken": "^9.0.3",
+    "mongoose": "^9.3.1"
   },
   "devDependencies": {
+    "eslint": "^10.0.3",
     "jest": "^29.7.0",
+    "mongodb-memory-server": "^9.1.6",
     "nodemon": "^3.1.0",
     "supertest": "^6.3.4"
   }

@@ -5,3 +5,14 @@ dist
 build
 coverage
 .vercel
+client/.env.production
+client/test-report.json
+server/test-report.json
+*.pem
+
+# Terraform
+terraform/.terraform/
+terraform/.terraform.lock.hcl
+terraform/terraform.tfstate
+terraform/terraform.tfstate.backup
+terraform/*.tfplan

@@ -1,0 +1,322 @@
+name: Full-Stack CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: Phase 1 - Testing (${{ matrix.app }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        app: [client, server]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: ${{ matrix.app }}/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ${{ matrix.app }}
+        run: npm ci
+
+      - name: Run Unit and Integration Tests
+        working-directory: ${{ matrix.app }}
+        env:
+          CI: true
+        run: npm run test:report
+
+      - name: Upload Test Reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-report-${{ matrix.app }}
+          path: ${{ matrix.app }}/test-report.json
+
+  terraform:
+    name: Phase 2 - Infrastructure Provisioning
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Init
+        working-directory: terraform
+        run: terraform init
+
+      - name: Terraform Validate
+        working-directory: terraform
+        run: terraform validate
+
+      - name: Import Existing Resources (if any)
+        working-directory: terraform
+        run: |
+          set +e   # never abort on individual failures
+
+          # Only import if (a) not already in state AND (b) resource exists in AWS
+          tf_import() {
+            local address="$1"
+            local id="$2"
+            if terraform state show "$address" >/dev/null 2>&1; then
+              echo "SKIP (already in state): $address"
+              return 0
+            fi
+            echo "Importing: $address = $id"
+            terraform import "$address" "$id" 2>&1 | grep -v "^data\." | grep -v "^Reading\|^Read complete" || true
+            return 0
+          }
+
+          # ── S3 / ECR / CloudWatch ─────────────────────────────────────
+          tf_import aws_s3_bucket.artifacts                 shopsmart-artifacts-2026-unique
+          tf_import aws_ecr_repository.backend              shopsmart-backend
+          tf_import aws_ecr_repository.frontend             shopsmart-frontend
+          tf_import aws_cloudwatch_log_group.backend        /ecs/shopsmart-backend
+          tf_import aws_cloudwatch_log_group.frontend       /ecs/shopsmart-frontend
+
+          # ── ECS Cluster (import by NAME, not ARN) ────────────────────
+          CLUSTER_EXISTS=$(aws ecs describe-clusters --clusters shopsmart-cluster \
+            --query 'clusters[0].status' --output text 2>/dev/null)
+          if [ -n "$CLUSTER_EXISTS" ] && [ "$CLUSTER_EXISTS" = "ACTIVE" ]; then
+            tf_import aws_ecs_cluster.main "shopsmart-cluster"
+          fi
+
+          # ── VPC ──────────────────────────────────────────────────────────
+          VPC_ID=$(aws ec2 describe-vpcs \
+            --filters "Name=tag:Name,Values=shopsmart-vpc" \
+            --query 'Vpcs[0].VpcId' --output text 2>/dev/null)
+          if [ -n "$VPC_ID" ] && [ "$VPC_ID" != "None" ]; then
+            tf_import aws_vpc.main "$VPC_ID"
+          fi
+
+          # ── Internet Gateway ─────────────────────────────────────────────
+          IGW_ID=$(aws ec2 describe-internet-gateways \
+            --filters "Name=tag:Name,Values=shopsmart-igw" \
+            --query 'InternetGateways[0].InternetGatewayId' --output text 2>/dev/null)
+          if [ -n "$IGW_ID" ] && [ "$IGW_ID" != "None" ]; then
+            tf_import aws_internet_gateway.main "$IGW_ID"
+          fi
+
+          # ── Subnets (scoped to current VPC to avoid old VPC subnets) ──
+          if [ -n "$VPC_ID" ] && [ "$VPC_ID" != "None" ]; then
+            SUBNET_1=$(aws ec2 describe-subnets \
+              --filters "Name=vpc-id,Values=$VPC_ID" "Name=tag:Name,Values=shopsmart-public-1" \
+              --query 'Subnets[0].SubnetId' --output text 2>/dev/null)
+            if [ -n "$SUBNET_1" ] && [ "$SUBNET_1" != "None" ]; then
+              tf_import 'aws_subnet.public[0]' "$SUBNET_1"
+            fi
+
+            SUBNET_2=$(aws ec2 describe-subnets \
+              --filters "Name=vpc-id,Values=$VPC_ID" "Name=tag:Name,Values=shopsmart-public-2" \
+              --query 'Subnets[0].SubnetId' --output text 2>/dev/null)
+            if [ -n "$SUBNET_2" ] && [ "$SUBNET_2" != "None" ]; then
+              tf_import 'aws_subnet.public[1]' "$SUBNET_2"
+            fi
+          fi
+
+          # ── Route Table (only — associations handled by local-exec now) ──
+          if [ -n "$VPC_ID" ] && [ "$VPC_ID" != "None" ]; then
+            RT_ID=$(aws ec2 describe-route-tables \
+              --filters "Name=vpc-id,Values=$VPC_ID" "Name=tag:Name,Values=shopsmart-public-rt" \
+              --query 'RouteTables[0].RouteTableId' --output text 2>/dev/null)
+            if [ -n "$RT_ID" ] && [ "$RT_ID" != "None" ]; then
+              tf_import aws_route_table.public "$RT_ID"
+            fi
+          fi
+
+          # ── Security Groups ───────────────────────────────────────────────
+          ALB_SG=$(aws ec2 describe-security-groups \
+            --filters "Name=tag:Name,Values=shopsmart-alb-sg" \
+            --query 'SecurityGroups[0].GroupId' --output text 2>/dev/null)
+          if [ -n "$ALB_SG" ] && [ "$ALB_SG" != "None" ]; then
+            tf_import aws_security_group.alb "$ALB_SG"
+          fi
+
+          ECS_SG=$(aws ec2 describe-security-groups \
+            --filters "Name=tag:Name,Values=shopsmart-ecs-sg" \
+            --query 'SecurityGroups[0].GroupId' --output text 2>/dev/null)
+          if [ -n "$ECS_SG" ] && [ "$ECS_SG" != "None" ]; then
+            tf_import aws_security_group.ecs "$ECS_SG"
+          fi
+
+          # ── ALB + Target Groups + Listener + Listener Rule ────────────────
+          ALB_ARN=$(aws elbv2 describe-load-balancers \
+            --names shopsmart-alb \
+            --query 'LoadBalancers[0].LoadBalancerArn' --output text 2>/dev/null)
+          if [ -n "$ALB_ARN" ] && [ "$ALB_ARN" != "None" ]; then
+            tf_import aws_lb.main "$ALB_ARN"
+
+            BACKEND_TG_ARN=$(aws elbv2 describe-target-groups \
+              --names shopsmart-backend-tg \
+              --query 'TargetGroups[0].TargetGroupArn' --output text 2>/dev/null)
+            if [ -n "$BACKEND_TG_ARN" ] && [ "$BACKEND_TG_ARN" != "None" ]; then
+              tf_import aws_lb_target_group.backend "$BACKEND_TG_ARN"
+            fi
+
+            FRONTEND_TG_ARN=$(aws elbv2 describe-target-groups \
+              --names shopsmart-frontend-tg \
+              --query 'TargetGroups[0].TargetGroupArn' --output text 2>/dev/null)
+            if [ -n "$FRONTEND_TG_ARN" ] && [ "$FRONTEND_TG_ARN" != "None" ]; then
+              tf_import aws_lb_target_group.frontend "$FRONTEND_TG_ARN"
+            fi
+
+            LISTENER_ARN=$(aws elbv2 describe-listeners \
+              --load-balancer-arn "$ALB_ARN" \
+              --query 'Listeners[0].ListenerArn' --output text 2>/dev/null)
+            if [ -n "$LISTENER_ARN" ] && [ "$LISTENER_ARN" != "None" ]; then
+              tf_import aws_lb_listener.http "$LISTENER_ARN"
+
+              RULE_ARN=$(aws elbv2 describe-rules \
+                --listener-arn "$LISTENER_ARN" \
+                --query "Rules[?Priority=='100'].RuleArn" --output text 2>/dev/null)
+              if [ -n "$RULE_ARN" ] && [ "$RULE_ARN" != "None" ]; then
+                tf_import aws_lb_listener_rule.backend_api "$RULE_ARN"
+              fi
+            fi
+          fi
+
+          # ── ECS Services ──────────────────────────────────────────────────
+          CLUSTER_ARN=$(aws ecs describe-clusters --clusters shopsmart-cluster \
+            --query 'clusters[0].clusterArn' --output text 2>/dev/null)
+          if [ -n "$CLUSTER_ARN" ] && [ "$CLUSTER_ARN" != "None" ]; then
+            BACKEND_SVC=$(aws ecs describe-services \
+              --cluster shopsmart-cluster --services shopsmart-backend-service \
+              --query 'services[0].serviceArn' --output text 2>/dev/null)
+            if [ -n "$BACKEND_SVC" ] && [ "$BACKEND_SVC" != "None" ]; then
+              tf_import aws_ecs_service.backend "shopsmart-cluster/shopsmart-backend-service"
+            fi
+
+            FRONTEND_SVC=$(aws ecs describe-services \
+              --cluster shopsmart-cluster --services shopsmart-frontend-service \
+              --query 'services[0].serviceArn' --output text 2>/dev/null)
+            if [ -n "$FRONTEND_SVC" ] && [ "$FRONTEND_SVC" != "None" ]; then
+              tf_import aws_ecs_service.frontend "shopsmart-cluster/shopsmart-frontend-service"
+            fi
+          fi
+
+          exit 0  # always succeed
+
+      - name: Terraform Plan
+        working-directory: terraform
+        run: |
+          terraform plan \
+            -var="mongo_uri=${{ secrets.MONGO_URI }}" \
+            -var="jwt_secret=${{ secrets.JWT_SECRET }}" \
+            -out=tfplan
+
+      - name: Terraform Apply
+        working-directory: terraform
+        run: terraform apply -auto-approve tfplan
+
+  build-and-push:
+    name: Phase 3 - Container Build & ECR Push
+    runs-on: ubuntu-latest
+    needs: terraform
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and Push Backend Image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: shopsmart-backend
+          IMAGE_TAG: ${{ github.sha }}
+        working-directory: server
+        run: |
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker tag  $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
+                      $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+
+      - name: Build and Push Frontend Image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: shopsmart-frontend
+          IMAGE_TAG: ${{ github.sha }}
+        working-directory: client
+        run: |
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker tag  $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
+                      $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+
+  deploy:
+    name: Phase 3 - Deploy to ECS Fargate
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Deploy Backend Service
+        run: |
+          aws ecs update-service \
+            --cluster shopsmart-cluster \
+            --service shopsmart-backend-service \
+            --force-new-deployment
+
+      - name: Deploy Frontend Service
+        run: |
+          aws ecs update-service \
+            --cluster shopsmart-cluster \
+            --service shopsmart-frontend-service \
+            --force-new-deployment
+
+      - name: Verify Services Are Running
+        run: |
+          echo "Waiting for backend service to stabilize..."
+          aws ecs wait services-stable \
+            --cluster shopsmart-cluster \
+            --services shopsmart-backend-service
+
+          echo "Waiting for frontend service to stabilize..."
+          aws ecs wait services-stable \
+            --cluster shopsmart-cluster \
+            --services shopsmart-frontend-service
+
+          echo "Both services are running successfully!"
