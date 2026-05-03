@@ -220,7 +220,11 @@ jobs:
 
       - name: Terraform Plan
         working-directory: terraform
-        run: terraform plan -out=tfplan
+        run: |
+          terraform plan \
+            -var="mongo_uri=${{ secrets.MONGO_URI }}" \
+            -var="jwt_secret=${{ secrets.JWT_SECRET }}" \
+            -out=tfplan
 
       - name: Terraform Apply
         working-directory: terraform
