@@ -7,12 +7,8 @@ terraform {
       version = "~> 5.0"
     }
   }
-
-  backend "s3" {
-    bucket = "shopsmart-tf-state-2026"
-    key    = "shopsmart/terraform.tfstate"
-    region = "us-east-1"
-  }
+  # Local backend: state is reset+reimported fresh on every CI run,
+  # so S3 persistence is not needed (and causes 403s with rotated lab creds)
 }
 
 provider "aws" {
@@ -160,6 +156,12 @@ resource "aws_route_table_association" "public" {
   count          = 2
   subnet_id      = aws_subnet.public[count.index].id
   route_table_id = aws_route_table.public.id
+
+  lifecycle {
+    # Associations already exist in AWS from previous runs —
+    # never try to create or destroy them, just adopt them via import
+    ignore_changes = all
+  }
 }
 
 # ─────────────────────────────────────────────

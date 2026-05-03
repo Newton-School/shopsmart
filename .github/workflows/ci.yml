@@ -60,23 +60,6 @@ jobs:
           aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Create Terraform State Bucket (if not exists)
-        run: |
-          REGION="${{ secrets.AWS_REGION }}"
-          BUCKET="shopsmart-tf-state-2026"
-
-          # us-east-1 does NOT accept --create-bucket-configuration; all other regions do
-          if [ "$REGION" = "us-east-1" ]; then
-            aws s3api create-bucket --bucket $BUCKET --region $REGION 2>/dev/null || true
-          else
-            aws s3api create-bucket --bucket $BUCKET --region $REGION \
-              --create-bucket-configuration LocationConstraint=$REGION 2>/dev/null || true
-          fi
-
-          aws s3api put-bucket-versioning \
-            --bucket $BUCKET \
-            --versioning-configuration Status=Enabled 2>/dev/null || true
-
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
@@ -87,17 +70,6 @@ jobs:
       - name: Terraform Validate
         working-directory: terraform
         run: terraform validate
-
-      - name: Reset Terraform State (prevent stale destroy/recreate cycles)
-        working-directory: terraform
-        run: |
-          set +e
-          echo "Clearing stale state to ensure a clean import..."
-          terraform state list 2>/dev/null | while read resource; do
-            echo "Removing from state: $resource"
-            terraform state rm "$resource" 2>/dev/null || true
-          done
-          echo "State cleared. Ready for fresh import."
 
       - name: Import Existing Resources (if any)
         working-directory: terraform
