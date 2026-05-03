@@ -123,6 +123,12 @@ resource "aws_subnet" "public" {
   tags = {
     Name = "shopsmart-public-${count.index + 1}"
   }
+
+  lifecycle {
+    # Prevent destroy cycles — subnets can't be deleted while ENIs exist in them
+    ignore_changes    = [availability_zone, cidr_block, tags]
+    create_before_destroy = false
+  }
 }
 
 resource "aws_internet_gateway" "main" {
@@ -130,6 +136,10 @@ resource "aws_internet_gateway" "main" {
 
   tags = {
     Name = "shopsmart-igw"
+  }
+
+  lifecycle {
+    ignore_changes = [tags]
   }
 }
 
@@ -178,6 +188,10 @@ resource "aws_security_group" "alb" {
   tags = {
     Name = "shopsmart-alb-sg"
   }
+
+  lifecycle {
+    ignore_changes = [ingress, egress, tags]
+  }
 }
 
 resource "aws_security_group" "ecs" {
@@ -202,6 +216,10 @@ resource "aws_security_group" "ecs" {
   tags = {
     Name = "shopsmart-ecs-sg"
   }
+
+  lifecycle {
+    ignore_changes = [ingress, egress, tags]
+  }
 }
 
 # ─────────────────────────────────────────────
@@ -217,6 +235,10 @@ resource "aws_lb" "main" {
 
   tags = {
     Name = "shopsmart-alb"
+  }
+
+  lifecycle {
+    ignore_changes = [security_groups, subnets, tags]
   }
 }
 
@@ -238,6 +260,13 @@ resource "aws_lb_target_group" "backend" {
   tags = {
     Name = "shopsmart-backend-tg"
   }
+
+  lifecycle {
+    # Don't destroy if vpc_id differs (happens when imported from old VPC run)
+    # The listener holds these — destroying them blocks for minutes then fails
+    ignore_changes    = [vpc_id, health_check, tags]
+    create_before_destroy = false
+  }
 }
 
 resource "aws_lb_target_group" "frontend" {
@@ -257,6 +286,11 @@ resource "aws_lb_target_group" "frontend" {
 
   tags = {
     Name = "shopsmart-frontend-tg"
+  }
+
+  lifecycle {
+    ignore_changes    = [vpc_id, health_check, tags]
+    create_before_destroy = false
   }
 }
 
