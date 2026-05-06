@@ -1,0 +1,314 @@
+name: CI
+
+on:
+  push:
+    branches: ["*"]
+  pull_request:
+    branches: ["*"]
+
+jobs:
+  client:
+    name: Client – Unit & Integration Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+
+      - name: Install dependencies
+        working-directory: client
+        run: npm ci
+
+      - name: Run unit tests
+        working-directory: client
+        run: npm run test -- --run --reporter=junit --outputFile=unit-test-results.xml
+
+      - name: Upload client unit test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: client-unit-test-report
+          path: client/unit-test-results.xml
+          retention-days: 30
+
+      - name: Run client integration tests
+        working-directory: client
+        run: npm run test:integration -- --reporter=junit --outputFile=integration-test-results.xml
+
+      - name: Upload client integration test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: client-integration-test-report
+          path: client/integration-test-results.xml
+          retention-days: 30
+
+  server:
+    name: Server – Unit & Integration Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+
+      - name: Install dependencies
+        working-directory: server
+        run: npm ci
+
+      - name: Run unit tests
+        working-directory: server
+        run: npm run test -- --reporter xunit --reporter-options output=unit-test-results.xml
+
+      - name: Upload server unit test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-unit-test-report
+          path: server/unit-test-results.xml
+          retention-days: 30
+
+      - name: Run integration tests
+        working-directory: server
+        run: npm run test:integration -- --reporter xunit --reporter-options output=integration-test-results.xml
+
+      - name: Upload server integration test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-integration-test-report
+          path: server/integration-test-results.xml
+          retention-days: 30
+
+  # ────────────────────────────────────────────────────────────────────────
+  # Phase 2 — Infrastructure Provisioning (Terraform)
+  # Provisions an S3 bucket with versioning, encryption & public-access block
+  # ────────────────────────────────────────────────────────────────────────
+  terraform:
+    name: Terraform – S3 Infrastructure
+    runs-on: ubuntu-latest
+    needs: [client, server]
+
+    defaults:
+      run:
+        working-directory: infra/terraform
+
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
+      AWS_DEFAULT_REGION: ${{ secrets.AWS_REGION }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.0
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Import Existing Resources
+        run: |
+          echo "Importing existing resources into Terraform state..."
+          
+          # Fetch AWS Account ID for dynamic bucket name
+          ACCOUNT_ID=$(aws sts get-caller-identity --query "Account" --output text)
+          REGION="${{ secrets.AWS_REGION }}"
+          BUCKET_NAME="shopsmart-artifacts-${ACCOUNT_ID}-${REGION}"
+          echo "Using Bucket Name: ${BUCKET_NAME}"
+
+          # S3
+          terraform import -var="aws_region=${REGION}" aws_s3_bucket.shopsmart "${BUCKET_NAME}" || true
+          terraform import -var="aws_region=${REGION}" aws_s3_bucket_versioning.shopsmart "${BUCKET_NAME}" || true
+          terraform import -var="aws_region=${REGION}" aws_s3_bucket_server_side_encryption_configuration.shopsmart "${BUCKET_NAME}" || true
+          terraform import -var="aws_region=${REGION}" aws_s3_bucket_public_access_block.shopsmart "${BUCKET_NAME}" || true
+          
+          # ECR
+          terraform import -var="aws_region=${{ secrets.AWS_REGION }}" aws_ecr_repository.shopsmart_server shopsmart-server || true
+          terraform import -var="aws_region=${{ secrets.AWS_REGION }}" aws_ecr_repository.shopsmart_client shopsmart-client || true
+          
+          # CloudWatch
+          terraform import -var="aws_region=${{ secrets.AWS_REGION }}" aws_cloudwatch_log_group.shopsmart_server /ecs/shopsmart-server || true
+          terraform import -var="aws_region=${{ secrets.AWS_REGION }}" aws_cloudwatch_log_group.shopsmart_client /ecs/shopsmart-client || true
+          
+          # ECS Cluster
+          terraform import -var="aws_region=${{ secrets.AWS_REGION }}" aws_ecs_cluster.shopsmart shopsmart-cluster || true
+          
+          # Security Group
+          SG_ID=$(aws ec2 describe-security-groups --filters "Name=group-name,Values=shopsmart-ecs-sg" --query 'SecurityGroups[0].GroupId' --output text 2>/dev/null || echo "")
+          if [ -n "$SG_ID" ] && [ "$SG_ID" != "None" ]; then
+            terraform import -var="aws_region=${{ secrets.AWS_REGION }}" aws_security_group.ecs_service "$SG_ID" || true
+          fi
+          
+          # ECS Services
+          terraform import -var="aws_region=${{ secrets.AWS_REGION }}" aws_ecs_service.shopsmart_server shopsmart-cluster/shopsmart-server-service || true
+          terraform import -var="aws_region=${{ secrets.AWS_REGION }}" aws_ecs_service.shopsmart_client shopsmart-cluster/shopsmart-client-service || true
+
+      - name: Terraform Format Check
+        run: terraform fmt -check
+
+      - name: Terraform Validate
+        run: terraform validate
+
+      - name: Terraform Plan
+        run: terraform plan -var="aws_region=${{ secrets.AWS_REGION }}" -out=tfplan -input=false
+
+      - name: Terraform Apply
+        run: terraform apply -auto-approve -input=false tfplan
+
+      - name: Show Terraform Outputs
+        run: terraform output
+
+  # ────────────────────────────────────────────────────────────────────────
+  # Phase 3 — Container Build & ECS Deployment
+  # Build Docker images, push to ECR, deploy to ECS Fargate
+  # ────────────────────────────────────────────────────────────────────────
+  deploy:
+    name: Docker Build, Push & ECS Deploy
+    runs-on: ubuntu-latest
+    needs: [terraform]
+
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
+      AWS_DEFAULT_REGION: ${{ secrets.AWS_REGION }}
+      ECR_SERVER_REPO: shopsmart-server
+      ECR_CLIENT_REPO: shopsmart-client
+      ECS_CLUSTER: shopsmart-cluster
+      ECS_SERVER_SERVICE: shopsmart-server-service
+      ECS_CLIENT_SERVICE: shopsmart-client-service
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # ── Server Image ──────────────────────────────────────────────────
+      - name: Build & push server image
+        id: build-server
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build \
+            -t $ECR_REGISTRY/$ECR_SERVER_REPO:$IMAGE_TAG \
+            -t $ECR_REGISTRY/$ECR_SERVER_REPO:latest \
+            ./server
+
+          docker push $ECR_REGISTRY/$ECR_SERVER_REPO:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_SERVER_REPO:latest
+
+          echo "image=$ECR_REGISTRY/$ECR_SERVER_REPO:$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+      # ── Client Image ──────────────────────────────────────────────────
+      - name: Build & push client image
+        id: build-client
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build \
+            -t $ECR_REGISTRY/$ECR_CLIENT_REPO:$IMAGE_TAG \
+            -t $ECR_REGISTRY/$ECR_CLIENT_REPO:latest \
+            ./client
+
+          docker push $ECR_REGISTRY/$ECR_CLIENT_REPO:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_CLIENT_REPO:latest
+
+          echo "image=$ECR_REGISTRY/$ECR_CLIENT_REPO:$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+      # ── Deploy Server to ECS ──────────────────────────────────────────
+      - name: Update server ECS task definition
+        id: update-server-task
+        run: |
+          TASK_DEF=$(aws ecs describe-task-definition \
+            --task-definition shopsmart-server \
+            --query 'taskDefinition' \
+            --output json)
+
+          NEW_TASK_DEF=$(echo $TASK_DEF | jq \
+            --arg IMAGE "${{ steps.build-server.outputs.image }}" \
+            '.containerDefinitions[0].image = $IMAGE |
+             del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)')
+
+          NEW_TASK_ARN=$(aws ecs register-task-definition \
+            --cli-input-json "$NEW_TASK_DEF" \
+            --query 'taskDefinition.taskDefinitionArn' \
+            --output text)
+
+          echo "task_arn=$NEW_TASK_ARN" >> $GITHUB_OUTPUT
+
+      - name: Deploy server to ECS Fargate
+        run: |
+          aws ecs update-service \
+            --cluster $ECS_CLUSTER \
+            --service $ECS_SERVER_SERVICE \
+            --task-definition ${{ steps.update-server-task.outputs.task_arn }} \
+            --force-new-deployment
+
+      # ── Deploy Client to ECS ──────────────────────────────────────────
+      - name: Update client ECS task definition
+        id: update-client-task
+        run: |
+          TASK_DEF=$(aws ecs describe-task-definition \
+            --task-definition shopsmart-client \
+            --query 'taskDefinition' \
+            --output json)
+
+          NEW_TASK_DEF=$(echo $TASK_DEF | jq \
+            --arg IMAGE "${{ steps.build-client.outputs.image }}" \
+            '.containerDefinitions[0].image = $IMAGE |
+             del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)')
+
+          NEW_TASK_ARN=$(aws ecs register-task-definition \
+            --cli-input-json "$NEW_TASK_DEF" \
+            --query 'taskDefinition.taskDefinitionArn' \
+            --output text)
+
+          echo "task_arn=$NEW_TASK_ARN" >> $GITHUB_OUTPUT
+
+      - name: Deploy client to ECS Fargate
+        run: |
+          aws ecs update-service \
+            --cluster $ECS_CLUSTER \
+            --service $ECS_CLIENT_SERVICE \
+            --task-definition ${{ steps.update-client-task.outputs.task_arn }} \
+            --force-new-deployment
+
+      # ── Verify Both Services ──────────────────────────────────────────
+      - name: Verify ECS services are running
+        run: |
+          echo "Waiting for ECS services to stabilize..."
+          aws ecs wait services-stable \
+            --cluster $ECS_CLUSTER \
+            --services $ECS_SERVER_SERVICE $ECS_CLIENT_SERVICE
+          echo "✅ Both ECS services are stable and running!"

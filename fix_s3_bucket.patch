@@ -1,0 +1,31 @@
+--- infra/terraform/variables.tf
++++ infra/terraform/variables.tf
+@@ -10,14 +10,8 @@
+ 
+-variable "bucket_name" {
+-  description = "Globally unique name for the S3 bucket"
+-  type        = string
+-  default     = "shopsmart-artifacts-2026"
+-
+-  validation {
+-    condition     = can(regex("^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$", var.bucket_name))
+-    error_message = "Bucket name must be 3-63 characters, lowercase letters, numbers, hyphens, and periods only."
+-  }
+-}
+ 
+--- infra/terraform/main.tf
++++ infra/terraform/main.tf
+@@ -21,5 +21,11 @@
+ 
++# ── Data Sources ────────────────────────────────────────────────────────────
++data "aws_caller_identity" "current" {}
++
++locals {
++  bucket_name = "shopsmart-artifacts-${data.aws_caller_identity.current.account_id}"
++}
++
+ # ── S3 Bucket ───────────────────────────────────────────────────────────────
+ resource "aws_s3_bucket" "shopsmart" {
+-  bucket = var.bucket_name
++  bucket = local.bucket_name
+ 
